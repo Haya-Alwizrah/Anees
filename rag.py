@@ -1,12 +1,11 @@
 import chromadb
 from chromadb.utils import embedding_functions
-from datasets import load_dataset
 import re
 from rank_bm25 import BM25Okapi
 from sentence_transformers import CrossEncoder
 import pandas as pd
 
-class DataManager:
+class Story_Generetor:
     def __init__(self, data_path):
         self.client = chromadb.PersistentClient(path="chroma_db")
         self.collection_name = "stories"

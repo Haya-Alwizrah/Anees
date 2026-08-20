@@ -6,7 +6,7 @@ from rank_bm25 import BM25Okapi
 from langchain_groq import ChatGroq
 
 class StoryGenerator:
-    def __init__(self, data_path:str, api_key:str):
+    def __init__(self, data_path:str, api_key:str, model_name):
         self.client = chromadb.PersistentClient(path="chroma_db")
         self.collection_name = "stories"
         
@@ -37,7 +37,7 @@ class StoryGenerator:
             "التسامح": "قصة عن التسامح والعفو واحترام الآخرين",
             "النظافة": "قصة عن النظافة الشخصية ونظافة البيئة والمحافظة على المكان"
         }
-        self.llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.7, api_key= api_key)
+        self.llm = ChatGroq(model=model_name, temperature=0.7, api_key= api_key)
         
 # -------------------[ Chroma ]----------------------------------
     def _load_chroma_data(self):
@@ -212,8 +212,8 @@ class StoryGenerator:
 - أنشئ قصة جديدة ومبتكرة.
 - استخدم لغة عربية واضحة وبسيطة.
 - اجعل القصة مناسبة للأطفال.
-- اجعل لها بداية ووسط ونهاية.
-- اجعل فيها رسالة أو قيمة تعليمية مرتبطة بالموضوع.
+- اجعل القصة تتضمن رسالة أو قيمة تعليمية مرتبطة بالموضوع.
+- اجعل طول القصة متوسط
 """
 
         response = self.llm.invoke(prompt)

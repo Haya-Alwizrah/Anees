@@ -9,15 +9,14 @@ import pandas as pd
 class DataManager:
     def __init__(self, data_path):
         self.client = chromadb.PersistentClient(path="chroma_db")
-        self.collection_name = "stores"
-        self.dataset = pd.read_csv(data_path)
+        self.collection_name = "stories"
+        
+        df = pd.read_csv(data_path)
+        self.dataset = df["Story"].dropna().astype(str).tolist()
 
         EMBEDDING_MODEL = "Omartificial-Intelligence-Space/Arabic-Triplet-Matryoshka-V2"
-        self.embedding_func = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name= EMBEDDING_MODEL
-        )
-
-        self.raw_data = []
+        self.embedding_func = embedding_functions.SentenceTransformerEmbeddingFunction(model_name= EMBEDDING_MODEL)
+        self.reranker = CrossEncoder("BAAI/bge-reranker-base")
         
         self.chunks = []
         self.metadatas = []
@@ -27,29 +26,19 @@ class DataManager:
         self.bm25_tokens = []
         self.bm25 = None
 
-        self.reranker = CrossEncoder("BAAI/bge-reranker-base")  
-    
-    def _rerank(self, query, docs):
-        reranker = self.reranker
-
-        pairs = [(query, doc) for doc in docs]
-        scores = reranker.predict(pairs)
-
-        ranked = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
-
-        return [doc for doc, _ in ranked]
-
 # -------------------[ Chroma ]----------------------------------
     def _load_chroma_data(self):
         self.chunks = []
         self.metadatas = []
 
-        print("start chunking...")
-        for row in self.dataset:
-            self.chunks.append(row['Story'])
+        print("Start loading stories...")
+        for i, row in enumerate(self.dataset):
+            self.chunks.append(row)
             self.metadatas.append({
-                ...
+                "row_id": i
             })
+
+        print(f"Loaded {len(self.chunks)} stories.")
 
     def _create_collection(self):
         self.collection = self.client.get_or_create_collection(
@@ -100,12 +89,7 @@ class DataManager:
         return text.strip()
     
     def _load_bm25_data(self):
-        self.bm25_docs = []
-
-        for row in self.raw_data:
-            bm25_doc = f"""البيت: {row['verse']}\n المفردات: {row['vocabulary']}\n المعنى: {row['meaning']}\n الاعراب: {row['grammar']}"""
-            self.bm25_docs.append(bm25_doc)
-
+        self.bm25_docs =self.dataset.copy()
         self.bm25_tokens = [self._normalize_arabic(doc).split() for doc in self.bm25_docs]
 
     def _build_bm25(self):
@@ -131,15 +115,25 @@ class DataManager:
 
         return [self.bm25_docs[i] for i in top_indices]
 
+# -------------------[ Re: Ranker ]----------------------------------
+    def _rerank(self, query, docs):
+        reranker = self.reranker
+
+        pairs = [(query, doc) for doc in docs]
+        scores = reranker.predict(pairs)
+
+        ranked = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
+
+        return [doc for doc, _ in ranked]
+
 #---------------------------------------------------------------------------------------------------------------------------------------------------------
     def prepare(self):
         print("creat or get collection")
         self._create_collection()
-        self._load_dataset()
 
-        if not self.raw_data:
+        if len(self.dataset) == 0:
             raise ValueError("Dataset is empty")
-
+    
         self._load_bm25_data()
         self._build_bm25()
 

@@ -1,21 +1,21 @@
+import re
+import pandas as pd
 import chromadb
 from chromadb.utils import embedding_functions
-import re
 from rank_bm25 import BM25Okapi
-from sentence_transformers import CrossEncoder
-import pandas as pd
+from langchain_groq import ChatGroq
 
-class Story_Generetor:
-    def __init__(self, data_path):
+class StoryGenerator:
+    def __init__(self, data_path:str, api_key:str):
         self.client = chromadb.PersistentClient(path="chroma_db")
         self.collection_name = "stories"
         
         df = pd.read_csv(data_path)
         self.dataset = df["Story"].dropna().astype(str).tolist()
 
-        EMBEDDING_MODEL = "Omartificial-Intelligence-Space/Arabic-Triplet-Matryoshka-V2"
-        self.embedding_func = embedding_functions.SentenceTransformerEmbeddingFunction(model_name= EMBEDDING_MODEL)
-        self.reranker = CrossEncoder("BAAI/bge-reranker-base")
+        self.EMBEDDING_MODEL = "Omartificial-Intelligence-Space/Arabic-Triplet-Matryoshka-V2"
+        self.embedding_func = None
+        self.reranker = None
         
         self.chunks = []
         self.metadatas = []
@@ -25,6 +25,20 @@ class Story_Generetor:
         self.bm25_tokens = []
         self.bm25 = None
 
+        self.is_prepared = False
+
+        self.topic_queries = {
+            "الصداقة": "قصة عن الصداقة والتعاون ومساعدة الأصدقاء",
+            "الصدق": "قصة عن الصدق والأمانة وقول الحقيقة",
+            "التعاون": "قصة عن التعاون والعمل الجماعي ومساعدة الآخرين",
+            "احترام الوالدين": "قصة عن بر الوالدين واحترامهما وطاعتهما",
+            "مساعدة الآخرين": "قصة عن مساعدة الآخرين والتعاطف معهم وتقديم الدعم",
+            "المسؤولية": "قصة عن تحمل المسؤولية والاعتماد على النفس والقيام بالواجبات",
+            "التسامح": "قصة عن التسامح والعفو واحترام الآخرين",
+            "النظافة": "قصة عن النظافة الشخصية ونظافة البيئة والمحافظة على المكان"
+        }
+        self.llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.7, api_key= api_key)
+        
 # -------------------[ Chroma ]----------------------------------
     def _load_chroma_data(self):
         self.chunks = []
@@ -40,6 +54,11 @@ class Story_Generetor:
         print(f"Loaded {len(self.chunks)} stories.")
 
     def _create_collection(self):
+        if self.embedding_func is None:
+            print("Loading embedding_func...")
+            self.embedding_func = embedding_functions.SentenceTransformerEmbeddingFunction(model_name= self.EMBEDDING_MODEL)
+            print("embedding_func loaded.")
+
         self.collection = self.client.get_or_create_collection(
             name=self.collection_name,
             embedding_function=self.embedding_func
@@ -116,6 +135,13 @@ class Story_Generetor:
 
 # -------------------[ Re: Ranker ]----------------------------------
     def _rerank(self, query, docs):
+        if self.reranker is None:
+            print("Loading reranker...")
+            from sentence_transformers import CrossEncoder
+
+            self.reranker = CrossEncoder("BAAI/bge-reranker-base")
+            print("Reranker loaded.")
+
         reranker = self.reranker
 
         pairs = [(query, doc) for doc in docs]
@@ -143,6 +169,8 @@ class Story_Generetor:
         else:
             print("Existing collection loaded.")
 
+        self.is_prepared = True
+
     def search(self, query, n_results=10):
         vector_results = self._chroma_search(query, n_results)
         bm25_results = self._bm25_search(query, n_results)
@@ -151,3 +179,43 @@ class Story_Generetor:
         ranked = self._rerank(query, candidates)
 
         return ranked[:n_results]
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------
+    def generate_story(self, topic, n_results=5):
+        if not self.is_prepared:
+            self.prepare()
+            
+        if topic not in self.topic_queries:
+            raise ValueError(f"Unknown topic: {topic}")
+
+        query = self.topic_queries[topic]
+        
+        stories = self.search(query, n_results)
+        context = "\n\n".join([f"القصة {i+1}:\n{story}" for i, story in enumerate(stories)])
+
+        prompt = f"""
+أنت كاتب قصص تعليمية للأطفال.
+
+الموضوع المطلوب:
+{topic}
+
+وصف الموضوع:
+{query}
+
+استخدم القصص المرجعية التالية للاستفادة من أسلوبها وأفكارها:
+{context}
+
+اكتب قصة عربية جديدة ومناسبة للأطفال حول الموضوع المطلوب.
+
+الشروط:
+- لا تنسخ القصص المرجعية حرفيًا.
+- أنشئ قصة جديدة ومبتكرة.
+- استخدم لغة عربية واضحة وبسيطة.
+- اجعل القصة مناسبة للأطفال.
+- اجعل لها بداية ووسط ونهاية.
+- اجعل فيها رسالة أو قيمة تعليمية مرتبطة بالموضوع.
+"""
+
+        response = self.llm.invoke(prompt)
+
+        return response.content

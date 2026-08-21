@@ -7,7 +7,7 @@ from langchain_groq import ChatGroq
 
 class StoryGenerator:
     def __init__(self, data_path:str, api_key:str, model_name):
-        self.client = chromadb.PersistentClient(path="chroma_db")
+        self.client = chromadb.PersistentClient(path="datasets\\chroma_db")
         self.collection_name = "stories"
         
         df = pd.read_csv(data_path)

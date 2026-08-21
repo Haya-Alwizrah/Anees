@@ -180,8 +180,39 @@ class StoryGenerator:
 
         return ranked[:n_results]
 
+
+    def search(self, query, search_type=5, n_results=10, ):
+        if search_type == 1: # only vector
+            return self._chroma_search(query, n_results)
+
+        elif search_type == 2: # onlu bm25
+            return self._bm25_search(query, n_results)
+
+        elif search_type == 3: # vector + bm25
+            vector_results = self._chroma_search(query, n_results)
+            bm25_results = self._bm25_search(query, n_results)
+
+            candidates = list(dict.fromkeys(vector_results + bm25_results))
+            return candidates[:n_results]
+
+        elif search_type == 4: # vector + reranker
+            vector_results = self._chroma_search(query, n_results)
+            return self._rerank(query, vector_results)[:n_results]
+        
+        elif search_type == 5: # vector + bm25 + reranker
+            vector_results = self._chroma_search(query, n_results)
+            bm25_results = self._bm25_search(query, n_results)
+
+            candidates = list(dict.fromkeys(vector_results + bm25_results))
+            ranked = self._rerank(query, candidates)
+
+            return ranked[:n_results]
+        
+        else:
+            raise ValueError(f"Unknown search_type: {search_type}")
+
 #---------------------------------------------------------------------------------------------------------------------------------------------------------
-    def generate_story(self, topic="الصدق", character="أرنب", n_results=5):
+    def generate_story(self, search_t:int=1, topic="الصدق", character="أرنب", n_results=5):
         if not self.is_prepared:
             self.prepare()
             
@@ -189,8 +220,8 @@ class StoryGenerator:
             raise ValueError(f"Unknown topic: {topic}")
 
         query = self.topic_queries[topic]
-        
-        stories = self.search(query, n_results)
+
+        stories = self.search(query, search_t, n_results)
         context = "\n\n".join([f"القصة {i+1}:\n{story}" for i, story in enumerate(stories)])
 
         prompt = f"""

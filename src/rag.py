@@ -212,7 +212,7 @@ class StoryGenerator:
             raise ValueError(f"Unknown search_type: {search_type}")
 
 #---------------------------------------------------------------------------------------------------------------------------------------------------------
-    def generate_story(self, search_t:int=1, topic="الصدق", character="أرنب", n_results=5):
+    def generate_story(self, search_t:int=5, topic="الصدق", character="أرنب", n_results=5):
         if not self.is_prepared:
             self.prepare()
             
@@ -247,7 +247,9 @@ class StoryGenerator:
 - اجعل القصة مناسبة للأطفال.
 - اجعل القصة تتضمن رسالة أو قيمة تعليمية مرتبطة بالموضوع.
 - اجعل القصة 10 جمل فقط وبفقرة واحدة او فقرتين
-- تأكد أن القصة سليمة نحوياً ومنطقياً
+- تأكد أن القصة سليمة نحوياً (مثل: مؤنث، مذكر)
+- استخدم اسماء عربية
+- يجب ان تكون احداث القصة منطقية بالنسبة إلى طفل
 """
 
         response = self.llm.invoke(prompt)

@@ -1,50 +1,116 @@
+import re
+import time
+import random
+
+
 class AneesWordGame:
+
     def __init__(self, client, age_range="6 إلى 11 سنة", debug=False):
         self.client = client
         self.age_range = age_range
         self.debug = debug
 
-    def ask_groq(self, prompt, temperature=0.3, reasoning_effort="low"):
-        response = self.client.chat.completions.create(
-            model="openai/gpt-oss-120b",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=temperature,
-            reasoning_effort=reasoning_effort
-        )
-        return response.choices[0].message.content.strip()
+    def ask_groq(self, prompt, temperature=0.3, reasoning_effort="low", retries=3):
+        """
+        إذا فشل الاتصال بـ Groq بسبب مشكلة مؤقتة، نحاول إرسال الطلب مرة ثانية.
+        وإذا فشلت كل المحاولات، نرجع None بدل ما يتوقف البرنامج.
+        """
+        for attempt in range(retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model="openai/gpt-oss-120b",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=temperature,
+                    reasoning_effort=reasoning_effort
+                )
+                return response.choices[0].message.content.strip()
+            except Exception as e:
+                if self.debug:
+                    print(f"[خطأ API] محاولة {attempt+1}/{retries}: {e}")
+                if attempt < retries - 1:
+                    time.sleep(2 * (attempt + 1))
+                else:
+                    print(f"[فشل نهائي] تعذر الاتصال بعد {retries} محاولات: {e}")
+                    return None
+
+    _KNOWN_GENDER_FIXES = {
+        "ما هي الشعور": "ما هو الشعور",
+        "ما هو الظاهرة": "ما هي الظاهرة",
+        "ما هي الشيء": "ما هو الشيء",
+        "ما هو الحركة": "ما هي الحركة",
+        "ما هو الصفة": "ما هي الصفة",
+        "ما هو الكلمة": "ما هي الكلمة",
+        "ما هي المكان": "ما هو المكان",
+        "ما هي الصوت": "ما هو الصوت",
+        "ما هي الجزء": "ما هو الجزء",
+        "ما هي الوعاء": "ما هو الوعاء",
+        "ما هو الأداة": "ما هي الأداة",
+    }
 
     def _fix_gender_agreement(self, question):
-        fixes = {
-            "ما هي الشعور": "ما هو الشعور",
-            "ما هو الظاهرة": "ما هي الظاهرة",
-            "ما هي الشيء": "ما هو الشيء",
-            "ما هو الحركة": "ما هي الحركة",
-            "ما هو الصفة": "ما هي الصفة",
-            "ما هو الكلمة": "ما هي الكلمة",
-            "ما هي المكان": "ما هو المكان",
-            "ما هي الصوت": "ما هو الصوت",
-        }
-
-        for wrong, right in fixes.items():
+        """
+        بدل ما نرسل طلب جديد لـ Groq لتصحيح صيغة السؤال، استخدمنا قاموس
+        يحتوي على أكثر الأخطاء التي تتكرر معنا، وهذا يقلل استهلاك الـ API.
+        """
+        for wrong, right in self._KNOWN_GENDER_FIXES.items():
             question = question.replace(wrong, right)
-
         return question
 
-    def generate_question(self, word, meaning, max_attempts=3):
+    @staticmethod
+    def _normalize(text):
+        text = text.replace('ال', '', 1) if text.startswith('ال') else text
+        diacritics = 'ًٌٍَُِّْ'
+        return ''.join(c for c in text if c not in diacritics).strip()
 
-        def normalize(text):
-            text = text.replace('ال', '', 1) if text.startswith('ال') else text
-            diacritics = 'ًٌٍَُِّْ'
-            return ''.join(
-                c for c in text
-                if c not in diacritics
-            ).strip()
+    @staticmethod
+    def _format_options(options):
+        """
+        نرتب الخيارات بشكل مرقم وواضح حتى يقدر نظام التحقق يميز كل خيار برقم.
+        """
+        return "\n".join(f"{i}: {opt}" for i, opt in enumerate(options))
 
-        clean_word = normalize(word)
+    def _verify_and_get_rejected(self, word, meaning, question, options):
+        """
+        نجمع التحقق من الخيارات وتحديد الخيارات المرفوضة في دالة واحدة
+        بدل ما نكرر نفس الخطوتين أكثر من مرة.
+        """
+        verification_result = self.verify_options(word, meaning, question, options)
+        rejected_indexes = self.get_rejected_indexes(verification_result)
+        return verification_result, rejected_indexes
 
-        for attempt in range(max_attempts):
+    COMMON_QUESTION_RULES = """
+قواعد مهمة:
+- يجب أن تكون بداية السؤال صحيحة نحويًا ("ما هي" للمؤنث، "ما هو" للمذكر).
+- استخدم عبارة أو فئة عامة تصف نوع الكلمة، وتكون مختلفة عن الكلمة الصحيحة.
+- صف مشهدًا أو موقفًا ملموسًا يستطيع الطفل تخيله بسهولة.
+- لا تذكر الكلمة الصحيحة أو أي جزء منها في السؤال إطلاقًا، ولا داخل مثال أو وصف.
+- يجب أن يحافظ السؤال على نوع الكلمة النحوي (اسم/فعل/صفة) كما ورد بالكلمة نفسها.
+- لا تستنتج نوع الكلمة من طبيعة المعنى المرجعي، اعتمد على الكلمة نفسها.
+- لا توسّع المعنى المرجعي إلى معنى آخر أو مجازي غير موجود فيه.
+- إذا كانت الكلمة اسمًا لشيء، اجعل السؤال عن الشيء نفسه، وليس عن استخدامه أو أثره.
+- استخدم الخاصية الأكثر تمييزًا بالمعنى المرجعي، تجنب الوصف العام جدًا.
+- اجعل الوصف كافيًا لتمييز الكلمة الصحيحة عن كلمات أخرى بنفس المجال.
+- استخدم لغة عربية فصحى بسيطة مناسبة لعمر 6 إلى 11 سنة.
+- اجعل السؤال واضحًا وله إجابة صحيحة واحدة فقط.
+- لا تكتب خيارات، لا تكتب شرحًا، لا تستخدم <think>.
+- أرجع السؤال فقط.
+"""
 
-            prompt = f"""
+    SELF_CHECK = """
+قبل إخراج السؤال، تحقق من:
+1. هل السؤال يطلب نفس نوع الكلمة؟
+2. هل يعتمد على المعنى المرجعي فقط؟
+3. هل توجد كلمة أخرى ممكن تكون إجابة صحيحة بدل الكلمة المطلوبة؟
+إذا كانت الإجابة "لا" عن أي منها، أعد الصياغة قبل الإخراج.
+"""
+
+    def _build_question_prompt(self, word, meaning, emphasize_no_leak=False):
+        emphasis = (
+            f'\nتذكير حرج: يجب ألا تظهر الكلمة "{word}" ولا أي جزء منها '
+            f'بالسؤال إطلاقًا، حتى لو احتجت تستخدم فئة أعم أو وصفًا غير مباشر.'
+            if emphasize_no_leak else ""
+        )
+        return f"""
 أنت مساعد تعليمي للأطفال في منصة أنيس.
 
 الفئة العمرية المستهدفة: {self.age_range}
@@ -57,238 +123,54 @@ class AneesWordGame:
 
 المهمة:
 حوّل المعنى المرجعي إلى سؤال قصير وواضح يستطيع الطفل معرفة الكلمة
-الصحيحة من خلاله.
-
-لا تجعل صيغة السؤال ثابتة لكل الكلمات؛ اختر صياغة تناسب نوع الكلمة
-ووظيفتها ومعناها.
-
-قواعد مهمة:
-
-- يجب أن تكون بداية السؤال صحيحة نحويًا.
-- استخدم "ما هي" إذا كان الاسم الذي يليها مؤنثًا.
-- استخدم "ما هو" إذا كان الاسم الذي يليها مذكرًا.
-- لا تستخدم "ما هو" قبل اسم مؤنث، ولا "ما هي" قبل اسم مذكر.
-- يجب أن تكون الجملة صحيحة نحويًا بالكامل.
-- استخدم عبارة أو فئة عامة تصف نوع الكلمة، وتكون مختلفة عن الكلمة الصحيحة.
-- صف مشهدًا أو موقفًا ملموسًا يستطيع الطفل تخيله بسهولة.
-- لا تذكر الكلمة الصحيحة أو أي جزء منها في السؤال إطلاقًا.
-- لا تستخدم الكلمة الصحيحة داخل مثال أو وصف أو موقف.
-- استخدم المعنى المرجعي كأساس للسؤال.
-- يمكنك إضافة وصف أو موقف يساعد الطفل على فهم الكلمة، حتى لو لم يكن
-  مذكورًا حرفيًا في المعنى المرجعي، بشرط ألا يغيّر المعنى الأساسي
-  للكلمة أو يجعل إجابة أخرى صحيحة.
-- يجب أن يحافظ السؤال على نوع الكلمة النحوي ومعناها كما وردا في الكلمة
-  والمعنى المرجعي.
-- لا تغيّر نوع الكلمة عند صياغة السؤال.
-- إذا كانت الكلمة اسمًا، يجب أن يكون المطلوب في السؤال اسمًا وليس فعلًا.
-- إذا كانت الكلمة فعلًا، يجب أن يكون المطلوب في السؤال فعلًا.
-- إذا كانت الكلمة صفة، يجب أن يكون المطلوب في السؤال صفة.
-- لا تستنتج أن الكلمة فعل لمجرد أن المعنى المرجعي يصف فعلًا.
-- لا تستنتج أن الكلمة اسم لمجرد أن المعنى المرجعي يصف شيئًا.
-- يجب أن تكون الإجابة المتوقعة هي الكلمة نفسها من حيث نوعها وصيغتها.
-- لا توسّع المعنى المرجعي إلى معنى آخر غير موجود فيه.
-- لا تضف معاني مجازية أو استخدامات أخرى للكلمة لم يذكرها المعنى المرجعي.
-- إذا كانت الكلمة اسمًا لشيء، اجعل السؤال عن الشيء نفسه، وليس عن
-  استخدامه أو أثره أو فعل مرتبط به.
-- إذا كانت الكلمة تدل على مكان، اجعل السؤال عن المكان نفسه.
-- إذا كانت الكلمة تدل على شعور، اجعل السؤال عن الشعور نفسه.
-- إذا كانت الكلمة تدل على صوت، اجعل السؤال عن الصوت نفسه.
-- إذا كانت الكلمة تدل على فعل، اجعل السؤال عن الفعل نفسه.
-- إذا كانت الكلمة تدل على صفة أو ملمس، اجعل السؤال عن الصفة أو الملمس نفسه.
-- لا تحوّل الكلمة إلى شيء آخر مرتبط بها.
-  مثال: إذا كانت الكلمة تدل على مصدر للماء، فلا تسأل عنها باعتبارها الماء نفسه.
-- يجب أن يتضمن السؤال تفاصيل مميزة مرتبطة بالمعنى المرجعي للكلمة،
-  بحيث لا تكون الكلمات العامة أو القريبة منها إجابات صحيحة.
-- تجنب الأسئلة العامة جدًا التي يمكن أن تنطبق على أكثر من شيء.
-- إذا كانت الكلمة تصف مكانًا أو شيئًا له خصائص مشتركة مع كلمات أخرى،
-  استخدم في السؤال الخاصية الأكثر تمييزًا للكلمة كما وردت في المعنى المرجعي.
-- اجعل الوصف في السؤال كافيًا لتمييز الكلمة الصحيحة عن الكلمات المرتبطة
-  بها في المجال نفسه.
-- لا تستخدم أوصافًا عامة جدًا إذا كانت تجعل أكثر من خيار ممكنًا كإجابة.
-- عندما يكون المعنى المرجعي يحتوي على خاصية مميزة، اجعل هذه الخاصية
-  واضحة في السؤال بدل الاكتفاء بوصف عام.
-
-قبل إخراج السؤال، تحقق من ثلاثة أشياء:
-1. هل السؤال يطلب نفس نوع الكلمة؟
-2. هل السؤال يعتمد على المعنى المرجعي فقط؟
-3. هل توجد كلمة أخرى يمكن أن تكون إجابة صحيحة بدل الكلمة المطلوبة؟
-
-إذا كانت الإجابة عن أي منها "لا"، أعد صياغة السؤال قبل إخراجه.
-
-- قبل إخراج السؤال، راجع صيغته نحويًا وتأكد من صحة التذكير والتأنيث
-  والمفرد والجمع.
-
-أمثلة على الصياغة الصحيحة حسب نوع الكلمة:
-
-- إذا كانت الكلمة فعلًا:
-  "ما هي الحركة التي يقوم بها الطفل عندما يرتفع عن الأرض؟"
-
-- إذا كانت الكلمة اسم مكان:
-  "ما هو المكان الذي تخرج منه المياه من باطن الأرض؟"
-
-- إذا كانت الكلمة صفة:
-  "ما هي الصفة التي تصف الشيء اللين عند لمسه؟"
-
-- إذا كانت الكلمة صوتًا:
-  "ما هو الصوت الذي يصدر عند تحرك أوراق الشجر؟"
-
-- إذا كانت الكلمة اسم شيء:
-  "ما هو المصباح الذي يُعلّق أو يُحمل لإضاءة المكان؟"
-
-مهم:
-هذه الأمثلة تشرح طريقة صياغة السؤال فقط، وليست كلمات يجب استخدامها.
-عند إنشاء السؤال، استخدم الكلمة والمعنى المرجعي الموجودين في الأعلى
-ولا تعتمد على الأمثلة كمصدر للمعنى.
-
-- استخدم لغة عربية فصحى بسيطة مناسبة للأطفال من عمر 6 إلى 11 سنة.
-- اجعل السؤال واضحًا وله إجابة صحيحة واحدة فقط.
-- لا تكتب خيارات.
-- أرجع السؤال فقط.
-- لا تكتب شرحًا.
-- لا تستخدم <think>.
+الصحيحة من خلاله. لا تجعل صيغة السؤال ثابتة لكل الكلمات؛ اختر صياغة
+تناسب نوع الكلمة ووظيفتها ومعناها.
+{self.COMMON_QUESTION_RULES}
+{self.SELF_CHECK}
+{emphasis}
 """
 
-            question = self.ask_groq(
-                prompt,
-                temperature=0.3 + attempt * 0.1
-            )
+    def generate_question(self, word, meaning, max_attempts=2):
+        """
+        نحاول توليد السؤال أكثر من مرة، وإذا ظهرت الكلمة الصحيحة داخل السؤال
+        نحاول مرة ثانية مع تشديد التعليمات لمنع ظهورها.
+        """
+        clean_word = self._normalize(word)
 
-            question = question.strip()
-            question = self._fix_gender_agreement(question)
+        for attempt in range(max_attempts):
+            prompt = self._build_question_prompt(word, meaning, emphasize_no_leak=False)
+            question = self.ask_groq(prompt, temperature=0.3 + attempt * 0.1)
 
-            clean_question = normalize(question)
+            if question is None:
+                continue
 
-            if clean_word not in clean_question:
+            question = self._fix_gender_agreement(question.strip())
+
+            if clean_word not in self._normalize(question):
+                if self.debug:
+                    print(f"[محاولة {attempt+1}] نجح: {question}")
                 return question
 
             if self.debug:
-                print(
-                    f"[تحذير] السؤال سرّب الكلمة، "
-                    f"إعادة المحاولة {attempt + 1}: {question}"
-                )
+                print(f"[محاولة {attempt+1}] سرّب الكلمة: {question}")
 
-        fallback_prompt = f"""
-أنت مساعد تعليمي للأطفال في منصة أنيس.
+        prompt = self._build_question_prompt(word, meaning, emphasize_no_leak=True)
+        question = self.ask_groq(prompt, temperature=0.5)
 
-الفئة العمرية المستهدفة: {self.age_range}
-
-الكلمة:
-{word}
-
-المعنى المرجعي:
-{meaning}
-
-المهمة:
-اكتب سؤالًا قصيرًا يصف الكلمة بصفاتها أو وظيفتها أو مكانها مباشرة،
-بحيث يستطيع الطفل معرفة الكلمة من الوصف.
-
-الشروط:
-- لا تذكر الكلمة الصحيحة أو أي جزء منها إطلاقًا.
-- لا تستخدم الكلمة الصحيحة داخل وصف أو مثال.
-- لا تستخدم "ما معنى كلمة".
-- لا تجعل السؤال عن المعنى المرجعي نفسه.
-- اجعل الوصف يؤدي إلى الكلمة الصحيحة كإجابة.
-- حافظ على نوع الكلمة ووظيفتها.
-- لا تغيّر نوع الكلمة عند صياغة السؤال.
-- إذا كانت الكلمة اسمًا، يجب أن يكون المطلوب في السؤال اسمًا وليس فعلًا.
-- إذا كانت الكلمة فعلًا، يجب أن يكون المطلوب في السؤال فعلًا.
-- إذا كانت الكلمة صفة، يجب أن يكون المطلوب في السؤال صفة.
-- لا تضف معنى آخر للكلمة غير موجود في المعنى المرجعي.
-- يجب أن يتضمن السؤال تفاصيل مميزة مرتبطة بالمعنى المرجعي.
-- تجنب الأسئلة العامة التي يمكن أن تنطبق على أكثر من كلمة.
-- استخدم الخاصية الأكثر تمييزًا للكلمة عندما يكون ذلك ممكنًا.
-- اجعل السؤال يؤدي إلى إجابة واحدة واضحة فقط.
-- ابدأ بـ"ما هو" أو "ما هي" بما يتوافق مع الاسم الذي يلي أداة السؤال.
-- تأكد أن الجملة صحيحة نحويًا.
-- استخدم لغة عربية فصحى بسيطة مناسبة لعمر 6 إلى 11 سنة.
-- أرجع السؤال فقط.
-- لا تكتب شرحًا.
-- لا تستخدم <think>.
-"""
-
-        question = self.ask_groq(
-            fallback_prompt,
-            temperature=0.4
-        )
-
-        question = question.strip()
-        question = self._fix_gender_agreement(question)
-
-        clean_question = normalize(question)
-
-        if clean_word not in clean_question:
-
+        if question is None:
             if self.debug:
-                print(f"[أسلوب بديل] نجح: {question}")
+                print(f"[فشل كامل] ما قدرنا نولّد سؤال لـ '{word}' — مشكلة اتصال")
+            return None
 
-            return question
-
-        if self.debug:
-            print(f"[أسلوب بديل] لسا مسرب: {question}")
-
-        final_prompt = f"""
-أنت مساعد تعليمي للأطفال في منصة أنيس.
-
-الكلمة الصحيحة:
-{word}
-
-المعنى المرجعي:
-{meaning}
-
-المهمة:
-اكتب سؤالًا قصيرًا يصف معنى الكلمة الصحيحة بطريقة تجعل الكلمة الصحيحة
-هي الإجابة الوحيدة الممكنة.
-
-مهم جدًا:
-- يجب أن تكون إجابة السؤال هي الكلمة الصحيحة "{word}".
-- لا تذكر الكلمة الصحيحة "{word}" في السؤال إطلاقًا.
-- لا تذكر أي جزء منها.
-- لا تذكر الكلمة الصحيحة داخل مثال أو وصف.
-- لا تستخدم صيغة "ما معنى كلمة".
-- لا تجعل المعنى المرجعي نفسه هو الإجابة.
-- حافظ على نوع الكلمة ووظيفتها.
-- لا تغيّر نوع الكلمة عند صياغة السؤال.
-- إذا كانت الكلمة اسمًا، يجب أن يكون المطلوب في السؤال اسمًا وليس فعلًا.
-- إذا كانت الكلمة فعلًا، يجب أن يكون المطلوب في السؤال فعلًا.
-- إذا كانت الكلمة صفة، يجب أن يكون المطلوب في السؤال صفة.
-- لا تضف معنى آخر للكلمة غير موجود في المعنى المرجعي.
-- استخدم الخاصية الأكثر تمييزًا للكلمة في المعنى المرجعي.
-- تجنب الوصف العام الذي يمكن أن ينطبق على كلمات أخرى.
-- اجعل السؤال يؤدي إلى إجابة واحدة واضحة فقط.
-- ابدأ بـ"ما هو" أو "ما هي" بما يتوافق مع الاسم الذي يلي أداة السؤال.
-- تأكد من صحة التذكير والتأنيث.
-- تأكد أن الجملة صحيحة نحويًا بالكامل.
-- استخدم لغة عربية فصحى بسيطة مناسبة لطفل من عمر 6 إلى 11 سنة.
-- أرجع السؤال فقط.
-- لا تكتب شرحًا.
-- لا تستخدم <think>.
-"""
-
-        question = self.ask_groq(
-            final_prompt,
-            temperature=0.3
-        )
-
-        question = question.strip()
-        question = self._fix_gender_agreement(question)
-
-        clean_question = normalize(question)
+        question = self._fix_gender_agreement(question.strip())
 
         if self.debug:
-            status = (
-                "نجح"
-                if clean_word not in clean_question
-                else "لسا مسرب"
-            )
-
-            print(
-                f"[المحاولة الأخيرة] {status}: {question}"
-            )
+            status = "نجح" if clean_word not in self._normalize(question) else "لسا مسرب"
+            print(f"[محاولة احتياطية] {status}: {question}")
 
         return question
 
-    def generate_distractors(self, word, meaning, question):
-
+    def generate_distractors(self, word, meaning, question, max_attempts=2):
         prompt = f"""
 أنت مساعد تعليمي في لعبة الكلمات في منصة أنيس.
 
@@ -304,164 +186,60 @@ class AneesWordGame:
 {question}
 
 المهمة:
-أنشئ 3 كلمات مشتتة مناسبة للسؤال.
-
-الهدف:
-اجعل الخيارات تبدو معقولة للطفل، لكن يجب أن تكون هناك إجابة صحيحة واحدة فقط.
-يجب ألا تكون الكلمات المشتتة قريبة جدًا من معنى الكلمة الصحيحة لدرجة تجعل الطفل
-يتردد بين أكثر من خيار.
+أنشئ 3 كلمات مشتتة مناسبة للسؤال، تبدو معقولة للطفل لكن يجب أن تكون
+هناك إجابة صحيحة واحدة فقط.
 
 القواعد الأساسية:
-
-1. كل كلمة مشتتة يجب أن تكون مختلفة بوضوح في المعنى عن الكلمة الصحيحة.
-
-2. لا تستخدم:
-- مرادفًا للكلمة الصحيحة.
-- شبه مرادف قريبًا جدًا من الكلمة الصحيحة.
-- كلمة يمكن أن تحل محل الكلمة الصحيحة في السؤال وتحافظ على المعنى.
-- كلمة من نفس العائلة الدلالية إذا كانت ستجعلها تبدو إجابة صحيحة.
-- كلمة من نفس الجذر أو صيغة مشتقة من الكلمة الصحيحة.
-- فعلًا أو اسمًا أو صفة مرتبطة بالكلمة الصحيحة ارتباطًا يجعلها إجابة محتملة.
-
-مثال:
-
-الكلمة الصحيحة:
-تعاون
-
-لا تستخدم:
-مساعدة
-مشاركة
-شارك
-تفاعل
-
-لأنها قريبة جدًا من معنى التعاون وقد تجعل الطفل يحتار.
-
-3. في المقابل، يمكن أن تكون الكلمة المشتتة مرتبطة بالسياق العام للسؤال،
-لكن يجب أن يكون معناها مختلفًا بوضوح عن الكلمة الصحيحة.
+1. كل كلمة مشتتة مختلفة بوضوح في المعنى عن الكلمة الصحيحة.
+2. لا تستخدم مرادفًا، شبه مرادف، كلمة يمكن أن تحل محل الكلمة الصحيحة،
+   أو كلمة من نفس الجذر أو مشتقة منها.
+3. يمكن أن تكون الكلمة مرتبطة بالسياق العام للسؤال، بشرط معناها مختلف
+   بوضوح عن الكلمة الصحيحة.
+4. لا تجعل المشتتات بعيدة جدًا أو عشوائية بلا علاقة بالسياق.
+5. الأولوية أن تكون كل كلمة مختلفة بوضوح عن الكلمة الصحيحة، لا أن
+   تتشابه الثلاث كلمات مع بعضها.
+6. استخدم نفس النوع النحوي للكلمة الصحيحة (اسم مع اسم، فعل مع فعل...).
+7. كل كلمة مناسبة لطفل من عمر 6 إلى 11 سنة، عربية صحيحة ومستخدمة طبيعيًا.
+8. لا كلمات مصطنعة، نادرة جدًا، ناقصة، أو مركبة بشكل غير طبيعي.
+9. مهم جدًا: كل مشتت يجب أن يكون كلمة واحدة مستقلة بدون مسافات إطلاقًا
+   (ممنوع أي عبارة من كلمتين أو أكثر مثل "ضحكة الأطفال" أو "صوت المطر").
 
 مثال:
+الكلمة الصحيحة: تعاون
+لا تستخدم (قريبة جدًا): مساعدة، مشاركة، شارك، تفاعل
+استخدم بدلها (مرتبطة بالسياق لكن مختلفة المعنى): مسابقة، رحلة، مغامرة
 
-الكلمة الصحيحة:
-تعاون
+قبل الإخراج، اسأل نفسك عن كل خيار: هل يمكن اعتباره إجابة صحيحة؟ هل هو
+مرادف أو قريب جدًا من المعنى؟ هل هو أكثر من كلمة واحدة؟ لو الإجابة
+"نعم" على أي منها، استبدله.
 
-خيارات مناسبة:
-مسابقة
-رحلة
-مغامرة
-
-هذه الكلمات مناسبة لعالم الأطفال والأنشطة، لكنها لا تعني التعاون.
-
-4. لا تجعل المشتتات بعيدة جدًا أو عشوائية.
-
-لا تستخدم كلمات مثل:
-تفاحة
-سيارة
-قمر
-
-إذا لم يكن لها أي علاقة بالسياق.
-
-5. لا تحاول جعل الكلمات الثلاث متشابهة في المعنى مع بعضها.
-الأولوية هي أن تكون كل كلمة مختلفة بوضوح عن الكلمة الصحيحة.
-
-6. يجب أن تكون الكلمات المشتتة من نفس النوع النحوي للكلمة الصحيحة قدر الإمكان:
-- إذا كانت الكلمة الصحيحة اسمًا، استخدم أسماء.
-- إذا كانت الكلمة الصحيحة فعلًا، استخدم أفعالًا.
-- إذا كانت الكلمة الصحيحة صفة، استخدم صفات.
-- إذا كانت الكلمة الصحيحة صوتًا، استخدم أسماء أصوات.
-ولا تغيّر نوع الكلمة فقط لجعلها مشتتًا.
-
-7. يجب أن تكون كل كلمة مناسبة لطفل من عمر 6 إلى 11 سنة.
-
-8. يجب أن تكون كل كلمة عربية صحيحة ومستخدمة بشكل طبيعي.
-
-9. لا تستخدم:
-- كلمات مصطنعة.
-- كلمات نادرة جدًا أو غير مناسبة لعمر الطفل.
-- كلمات ناقصة.
-- كلمات مركبة بشكل غير طبيعي.
-- صيغًا مشتقة بشكل غير صحيح.
-
-10. كل مشتت يجب أن يكون كلمة مستقلة واحدة فقط.
-
-قبل إخراج الكلمات، راجع كل خيار واسأل نفسك:
-
-- هل يمكن للطفل أن يختاره باعتباره الإجابة الصحيحة؟
-- هل يمكن أن يحل محل الكلمة الصحيحة في السؤال؟
-- هل هو مرادف أو شبه مرادف واضح؟
-- هل هو قريب جدًا من المعنى الأساسي للكلمة الصحيحة؟
-
-إذا كانت الإجابة "نعم" على أي منها، استبدل الكلمة.
-
-مهم:
-نحن لا نريد مشتتات بعيدة جدًا عن الموضوع،
-ولا نريد مشتتات شبه مرادفة.
-نريد كلمات معقولة في سياق السؤال ولكن مختلفة بوضوح في المعنى.
-
-أمثلة:
-
-الكلمة الصحيحة:
-ثقة
-
-مشتتات مناسبة:
-شجاعة
-فخر
-تفاؤل
-
-الكلمة الصحيحة:
-تعاون
-
-مشتتات مناسبة:
-مسابقة
-رحلة
-مغامرة
-
-الكلمة الصحيحة:
-مخيم
-
-مشتتات مناسبة:
-فندق
-منتزه
-متحف
-
-الكلمة الصحيحة:
-بريق
-
-مشتتات مناسبة:
-ظل
-ضباب
-صوت
-
-مهم:
-هذه الأمثلة لتوضيح مستوى التشابه المطلوب فقط.
-لا تستخدمها تلقائيًا، واعتمد على الكلمة والمعنى والسؤال الموجودين في الأعلى.
-
-- أرجع 3 كلمات فقط.
-- كل كلمة في سطر مستقل.
-- لا تكتب أرقامًا.
-- لا تكتب شرحًا.
-- لا تستخدم <think>.
+- أرجع 3 كلمات فقط، كل كلمة بسطر مستقل، كل كلمة مفردة بدون مسافات.
+- لا أرقام، لا شرح، لا <think>.
 """
+        single_word = []
+        for attempt in range(max_attempts):
+            response = self.ask_groq(prompt, temperature=0.4 + attempt * 0.02)
 
-        response = self.ask_groq(
-            prompt,
-            temperature=0.4
-        )
+            if response is None:
+                continue
 
-        distractors = [
-            line.strip()
-            for line in response.splitlines()
-            if line.strip()
-        ]
+            distractors = [line.strip() for line in response.splitlines() if line.strip()]
+            single_word = [d for d in distractors if len(d.split()) == 1]
 
-        return distractors[:3]
+            if len(single_word) >= 3:
+                return single_word[:3]
+
+            if self.debug:
+                rejected = [d for d in distractors if len(d.split()) > 1]
+                print(f"[محاولة {attempt+1}] مشتتات مرفوضة (أكثر من كلمة): {rejected}")
+
+        if self.debug:
+            print(f"[تحذير نهائي] ما قدرنا نجمع 3 مشتتات كلمة واحدة لـ '{word}'")
+
+        return single_word[:3]
 
     def verify_options(self, word, meaning, question, options):
-
-        options_text = "\n".join(
-            f"{i}: {opt}"
-            for i, opt in enumerate(options)
-        )
-
+        options_text = self._format_options(options)
         prompt = f"""
 أنت نظام تحقق للعبة الكلمات في منصة أنيس.
 
@@ -479,97 +257,46 @@ class AneesWordGame:
 الخيارات:
 {options_text}
 
-مهمتك:
-تحقق من الخيارات الأربعة.
+مهمتك: تحقق من الخيارات الأربعة.
 
 القواعد:
-
-1. الخيار 0 هو الكلمة الصحيحة ويجب أن يكون PASS دائمًا.
-
-2. الخيار الآخر يكون REJECT فقط في الحالات التالية:
-
-- إذا كان يمكن اعتباره إجابة صحيحة فعلًا لنفس السؤال.
-- إذا كان مرادفًا واضحًا ومباشرًا للكلمة الصحيحة.
-- إذا كان يحمل نفس المعنى الأساسي للكلمة الصحيحة بدرجة كبيرة جدًا
-  بحيث لا يستطيع الطفل التمييز بينهما.
-
-3. لا ترفض الخيار لمجرد أنه:
-- من نفس المجال.
-- مرتبط بالموقف.
-- مرتبط بالموضوع.
-- قريب بشكل عام من السؤال.
-- يمثل شعورًا مشابهًا لكنه ليس نفس الشعور.
-- يمثل شيئًا موجودًا في نفس المكان أو الموقف.
+1. الخيار 0 هو الكلمة الصحيحة، PASS دائمًا.
+2. الخيار الآخر REJECT فقط إذا كان: إجابة صحيحة بديلة فعلية لنفس السؤال،
+   أو مرادفًا واضحًا ومباشرًا، أو نفس المعنى الأساسي بدرجة يتعذر التمييز.
+3. لا ترفض لمجرد أنه من نفس المجال، مرتبط بالموقف/الموضوع، أو يمثل
+   شعورًا/شيئًا مشابهًا لكنه ليس نفس الشيء بالضبط.
 
 أمثلة:
+الكلمة "خجل": "خوف"=PASS، "توتر"=PASS، "انزعاج"=PASS (مشاعر مختلفة، مو مرادفات)
+الكلمة "برق": "وميض"=PASS، "غيوم"=PASS، "رياح"=PASS (مرتبطة بالظاهرة، مو مرادفة)
+الكلمة "بداية": "مستهل"=REJECT، "افتتاح"=REJECT (قريبة جدًا، بدائل معقولة)
 
-إذا كانت الكلمة الصحيحة "خجل":
-"خوف" = PASS
-"توتر" = PASS
-"انزعاج" = PASS
-لأنها مشاعر مختلفة وليست مرادفات مباشرة لـ"خجل".
+كن متساهلًا مع الارتباط بالموضوع، ومتشددًا فقط مع الإجابة الصحيحة البديلة
+أو المرادف الواضح.
 
-إذا كانت الكلمة الصحيحة "برق":
-"وميض" = PASS
-"غيوم" = PASS
-"رياح" = PASS
-لأنها مرتبطة بالظاهرة لكنها ليست إجابة صحيحة مباشرة ولا مرادفات لـ"برق".
-
-إذا كانت الكلمة الصحيحة "بداية":
-"مستهل" = REJECT
-"افتتاح" = REJECT
-"انطلاقة" = REJECT
-لأنها قريبة جدًا من معنى "بداية" ويمكن أن تكون إجابات بديلة معقولة.
-
-إذا كانت الكلمة الصحيحة "جدول" بمعنى مجرى مائي صغير:
-"دلو" = PASS
-"قناة" = PASS
-"حقل" = PASS
-طالما أن السؤال يطلب مجرى الماء نفسه وليس أي شيء متعلق بالري.
-
-4. لا تستخدم معيار "هل الخيار قريب من المعنى؟" وحده لرفض الخيار.
-
-5. الهدف هو منع وجود إجابتين صحيحتين أو مرادفين واضحين،
-وليس جعل جميع الخيارات بعيدة عن الكلمة الصحيحة.
-
-6. كن متساهلًا في الحالات التي يوجد فيها مجرد ارتباط بالموضوع،
-ومتشددًا فقط عندما يكون الخيار إجابة صحيحة أو مرادفًا واضحًا.
-
-لا تكتب أي شرح أو تفكير.
-
-أرجع فقط 4 أسطر بهذا الشكل بالضبط:
-
+لا شرح. أرجع فقط 4 أسطر بهذا الشكل بالضبط:
 0: PASS
 1: PASS أو REJECT
 2: PASS أو REJECT
 3: PASS أو REJECT
 """
-
-        return self.ask_groq(
-            prompt,
-            temperature=0.0,
-            reasoning_effort="low"
-        )
+        return self.ask_groq(prompt, temperature=0.0, reasoning_effort="low")
 
     def get_rejected_indexes(self, verification_result, expected_count=4):
-
-        import re
+        if verification_result is None:
+            if self.debug:
+                print("[تحذير] فشل التحقق (اتصال)، نرفض كل شي احترازيًا")
+            return list(range(1, expected_count))
 
         rejected_indexes = []
-
-        pattern = re.compile(
-            r'^\s*(\d+)\s*:\s*(PASS|REJECT)\s*$'
-        )
-
+        pattern = re.compile(r'^\s*(\d+)\s*:\s*(PASS|REJECT)\s*$')
         matched_lines = 0
 
         for line in verification_result.splitlines():
-
             match = pattern.match(line.strip())
 
             if match:
                 matched_lines += 1
-
                 index = int(match.group(1))
                 status = match.group(2)
 
@@ -577,32 +304,15 @@ class AneesWordGame:
                     rejected_indexes.append(index)
 
         if matched_lines < expected_count:
-
             if self.debug:
-                print(
-                    f"[تحذير] التحقق رجّع "
-                    f"{matched_lines}/{expected_count} أسطر — "
-                    f"نرفض كل الخيارات احترازيًا"
-                )
+                print(f"[تحذير] التحقق رجّع {matched_lines}/{expected_count} أسطر — نرفض كل شي احترازيًا")
 
             rejected_indexes = list(range(1, expected_count))
 
         return rejected_indexes
 
-    def generate_replacements(
-        self,
-        word,
-        meaning,
-        question,
-        options,
-        rejected_indexes
-    ):
-
-        options_text = "\n".join(
-            f"{i}: {opt}"
-            for i, opt in enumerate(options)
-        )
-
+    def generate_replacements(self, word, meaning, question, options, rejected_indexes):
+        options_text = self._format_options(options)
         prompt = f"""
 أنت مساعد تعليمي لمنصة أنيس للأطفال من عمر 6 إلى 11 سنة.
 
@@ -621,99 +331,63 @@ class AneesWordGame:
 أرقام الخيارات المرفوضة:
 {rejected_indexes}
 
-المهمة:
-اقترح كلمات بديلة للخيارات المرفوضة.
+المهمة: اقترح كلمة بديلة لكل خيار مرفوض.
 
 الشروط:
-- أنشئ كلمة بديلة مختلفة لكل خيار مرفوض.
-- يجب أن تكون الكلمات البديلة معقولة في سياق السؤال،
-  لكن مختلفة بوضوح في المعنى عن الكلمة الصحيحة.
-- يجب ألا تكون إجابة صحيحة للسؤال.
-- لا تستخدم مرادفات أو شبه مرادفات للكلمة الصحيحة.
-- لا تستخدم كلمات يمكن أن تحل محل الكلمة الصحيحة في السؤال.
-- لا تستخدم كلمات من نفس العائلة الدلالية إذا كانت ستسبب التباسًا.
-- ليست مشتقة من الكلمة الصحيحة.
-- مناسبة لطفل من عمر 6 إلى 11 سنة.
-- لا تستخدم أي كلمة موجودة أصلًا في الخيارات.
-- يجب أن تكون كل كلمة مختلفة عن الأخرى.
+- معقولة بسياق السؤال، لكن مختلفة بوضوح عن الكلمة الصحيحة.
+- ليست إجابة صحيحة، ليست مرادفًا، ليست مشتقة من الكلمة الصحيحة.
+- لا تستخدم أي كلمة موجودة أصلًا بالخيارات، وكل كلمة مختلفة عن الأخرى.
+- كلمة عربية صحيحة ومستخدمة طبيعيًا، مناسبة لعمر 6-11.
+- لا كلمات مصطنعة، مقطوعة، أو مركّبة بشكل غير صحيح.
 
-قواعد مهمة لجودة الكلمات:
-- يجب أن تكون كل كلمة عربية صحيحة ومستخدمة بشكل طبيعي.
-- لا تستخدم كلمات مصطنعة أو غير موجودة في الاستعمال العربي الطبيعي.
-- لا تقطع الكلمة أو تحذف جزءًا منها.
-- لا تغير بنية الكلمة بطريقة تجعلها ناقصة أو غير صحيحة.
-- لا تدمج كلمتين معًا بدون مسافة أو تركيب عربي صحيح.
-- لا تضف كلمات أو مقاطع عشوائية إلى كلمة موجودة.
-- لا تستخدم صيغًا تبدو صحيحة شكليًا لكنها غير مستخدمة في العربية.
-- استخدم كلمات مستقلة وواضحة.
-- استخدم كلمات مناسبة ومفهومة لطفل من عمر 6 إلى 11 سنة.
-- راجع كل كلمة قبل إخراجها وتأكد أنها كلمة عربية سليمة.
-
-- أرجع عددًا من الكلمات يساوي عدد الخيارات المرفوضة.
-- كل كلمة في سطر مستقل.
-- لا تكتب أرقامًا.
-- لا تكتب شرحًا.
-- لا تستخدم <think>.
+- أرجع عدد كلمات يساوي عدد الخيارات المرفوضة، كل كلمة بسطر مستقل.
+- لا أرقام، لا شرح، لا <think>.
 """
+        response = self.ask_groq(prompt, temperature=0.4)
 
-        response = self.ask_groq(
-            prompt,
-            temperature=0.4
-        )
+        if response is None:
+            return []
 
-        replacements = [
-            line.strip()
-            for line in response.splitlines()
-            if line.strip()
-        ]
-
+        replacements = [line.strip() for line in response.splitlines() if line.strip()]
         return replacements
 
     def generate_game(self, word, meaning, max_attempts=3):
+        word = word.strip()
+        meaning = meaning.strip()
 
-        question = self.generate_question(
-            word,
-            meaning
-        )
+        question = self.generate_question(word, meaning)
 
-        distractors = self.generate_distractors(
-            word,
-            meaning,
-            question
-        )
+        if question is None:
+            return {
+                "success": False,
+                "word": word,
+                "meaning": meaning,
+                "question": None,
+                "options": [],
+                "correct_index": None,
+                "verification": None,
+                "rejected_indexes": [],
+                "attempts": 0,
+                "error": "فشل الاتصال بالكامل بعد كل المحاولات",
+            }
 
+        distractors = self.generate_distractors(word, meaning, question)
         options = [word] + distractors[:3]
 
-        verification_result = self.verify_options(
-            word,
-            meaning,
-            question,
-            options
-        )
-
-        rejected_indexes = self.get_rejected_indexes(
-            verification_result
+        verification_result, rejected_indexes = self._verify_and_get_rejected(
+            word, meaning, question, options
         )
 
         attempt = 1
 
         if self.debug:
-            print(
-                f"[محاولة {attempt}] "
-                f"مرفوض: {rejected_indexes}"
-            )
-            print(verification_result)
+            print(f"[محاولة {attempt}] مرفوض: {rejected_indexes}")
 
         while rejected_indexes and attempt < max_attempts:
-
             attempt += 1
 
             replacements = self.generate_replacements(
-                word,
-                meaning,
-                question,
-                options,
-                rejected_indexes
+                word, meaning, question, options, rejected_indexes
             )
 
             if len(replacements) < len(rejected_indexes) and self.debug:
@@ -722,36 +396,21 @@ class AneesWordGame:
                     f"رجع {len(replacements)}"
                 )
 
-            for index, replacement in zip(
-                rejected_indexes,
-                replacements
-            ):
+            for index, replacement in zip(rejected_indexes, replacements):
                 options[index] = replacement
 
-            verification_result = self.verify_options(
-                word,
-                meaning,
-                question,
-                options
-            )
-
-            rejected_indexes = self.get_rejected_indexes(
-                verification_result
+            verification_result, rejected_indexes = self._verify_and_get_rejected(
+                word, meaning, question, options
             )
 
             if self.debug:
-                print(
-                    f"[محاولة {attempt}] "
-                    f"مرفوض: {rejected_indexes}"
-                )
-                print(verification_result)
+                print(f"[محاولة {attempt}] مرفوض: {rejected_indexes}")
 
         seen = set()
         duplicate_indexes = []
 
         for index, option in enumerate(options):
-
-            normalized_option = option.strip().lower()
+            normalized_option = self._normalize(option)
 
             if normalized_option in seen:
                 duplicate_indexes.append(index)
@@ -759,19 +418,11 @@ class AneesWordGame:
                 seen.add(normalized_option)
 
         if duplicate_indexes:
-
             if self.debug:
-                print(
-                    f"[تكرار] خيارات مكررة: "
-                    f"{duplicate_indexes}"
-                )
+                print(f"[تكرار] خيارات مكررة: {duplicate_indexes}")
 
             replacements = self.generate_replacements(
-                word,
-                meaning,
-                question,
-                options,
-                duplicate_indexes
+                word, meaning, question, options, duplicate_indexes
             )
 
             if len(replacements) < len(duplicate_indexes) and self.debug:
@@ -780,33 +431,19 @@ class AneesWordGame:
                     f"رجع {len(replacements)}"
                 )
 
-            for index, replacement in zip(
-                duplicate_indexes,
-                replacements
-            ):
+            for index, replacement in zip(duplicate_indexes, replacements):
                 options[index] = replacement
 
-            verification_result = self.verify_options(
-                word,
-                meaning,
-                question,
-                options
+            verification_result, rejected_indexes = self._verify_and_get_rejected(
+                word, meaning, question, options
             )
-
-            rejected_indexes = self.get_rejected_indexes(
-                verification_result
-            )
-
-        import random
 
         correct_word = word
         shuffled_options = options[:]
 
         random.shuffle(shuffled_options)
 
-        correct_index = shuffled_options.index(
-            correct_word
-        )
+        correct_index = shuffled_options.index(correct_word)
 
         return {
             "success": len(rejected_indexes) == 0,

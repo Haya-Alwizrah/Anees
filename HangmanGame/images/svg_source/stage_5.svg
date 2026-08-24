@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 440"><defs>
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#FDF3DC" />
+    </linearGradient>
+    <linearGradient id="tealGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#28B3A3" />
+      <stop offset="100%" stop-color="#0F6E56" />
+    </linearGradient>
+    <radialGradient id="beakGrad" cx="35%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="#FBCB6B" />
+      <stop offset="100%" stop-color="#EFA92E" />
+    </radialGradient>
+  </defs>
+
+  
+
+  <g id="part_branch">
+    <path d="M 30 396 Q 200 378 370 400 L 370 414 Q 200 394 30 410 Z" fill="#8A5A34" stroke="#6B4423" stroke-width="2" />
+    <ellipse cx="95" cy="382" rx="16" ry="9" fill="url(#tealGrad)" transform="rotate(-18 95 382)" />
+    <ellipse cx="300" cy="388" rx="16" ry="9" fill="url(#tealGrad)" transform="rotate(15 300 388)" />
+  </g>
+
+  <g id="part_leg1">
+    <ellipse cx="157" cy="378" rx="16" ry="10" fill="url(#beakGrad)" stroke="#C6432F" stroke-width="1.5" />
+    <g stroke="#C6432F" stroke-width="2" fill="none" stroke-linecap="round">
+      <path d="M 148 373 L 141 364" />
+      <path d="M 157 376 L 155 365" />
+      <path d="M 166 373 L 171 364" />
+    </g>
+  </g>
+
+  <g id="part_body">
+    <ellipse cx="200" cy="278" rx="92" ry="100" fill="url(#bodyGrad)" stroke="#E0B04A" stroke-width="2.5" />
+  </g>
+
+  <g id="part_wing1">
+    <path d="M 115 195 Q 80 215 86 268 Q 91 305 122 318 Q 147 300 149 253 Q 149 215 132 192 Q 123 188 115 195 Z" fill="url(#tealGrad)" />
+  </g>
+
+  <g id="part_wing2">
+    <path d="M 285 195 Q 320 215 314 268 Q 309 305 278 318 Q 253 300 251 253 Q 251 215 268 192 Q 277 188 285 195 Z" fill="url(#tealGrad)" />
+  </g>
+
+  <g id="part_head">
+    <circle cx="200" cy="145" r="88" fill="url(#bodyGrad)" stroke="#E0B04A" stroke-width="2.5" />
+    <path d="M 200 114              C 175 86, 132 94, 130 132              C 128 166, 165 189, 200 215              C 235 189, 272 166, 270 132              C 268 94, 225 86, 200 114 Z" fill="#EAF6F2" opacity="0.9" />
+    <path d="M 200 188 C 207 192 210 201 207 210 C 205 216 202 221 200 225 C 198 221 195 216 193 210 C 190 201 193 192 200 188 Z" fill="url(#beakGrad)" stroke="#C6432F" stroke-width="2" />
+  </g>
+</svg>

@@ -2,9 +2,7 @@ import re
 import time
 import random
 
-
 class AneesWordGame:
-
     def __init__(self, client, age_range="6 إلى 11 سنة", debug=False):
         self.client = client
         self.age_range = age_range

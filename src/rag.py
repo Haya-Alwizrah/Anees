@@ -4,6 +4,9 @@ import chromadb
 from chromadb.utils import embedding_functions
 from rank_bm25 import BM25Okapi
 from langchain_groq import ChatGroq
+import random
+import json
+import numpy as np
 
 class StoryGenerator:
     def __init__(self, data_path:str, api_key:str, model_name):
@@ -324,3 +327,66 @@ class StoryGenerator:
         response = self.llm.invoke(prompt)
         
         return response.content
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------
+    def LLM_as_judge(self, count:int=30):
+        topic = ["الصداقة", "الصدق", "التعاون", "احترام الوالدين", "مساعدة الآخرين", "المسؤولية", "التسامح", "النظافة"]
+        character = ["أرنب", "أسد", "غزال", "نمر"]
+        scores = {
+            "موافقة للموضوع": [],
+            "كلمات عربية": [],
+            "الترابط": [],
+            "الواقعية": []
+        }
+
+        for i in  range(count):
+            t = random.choice(topic)
+            c = random.choice(character)
+            story = self.generate_story(topic=t, character=c)
+
+            prompt = f"""
+أنت مقيم عادل وصارم 
+اقرأ القصة التالية وقيّمها من 0 إلى 10 حسب المعايير التالية:
+
+1. موافقة للموضوع: هل أحداث القصة مرتبطة بالموضوع المطلوب؟
+2. كلمات عربية: هل القصة مكتوبة باللغة العربية ولا تحتوي على كلمات غير عربية؟
+3. الترابط: هل أحداث القصة مترابطة ومنطقية؟
+4. الواقعية: هل أحداث القصة منطقية ومناسبة لعالم الأطفال؟
+
+الموضوع:
+{t}
+
+القصة:
+{story}
+
+أعد JSON فقط بدون أي نص إضافي.
+
+الصيغة المطلوبة:
+{{
+    "موافقة للموضوع": 0,
+    "كلمات عربية": 0,
+    "الترابط": 0,
+    "الواقعية": 0
+}}
+"""         
+            response = self.llm.invoke(prompt).content
+
+            try:
+                result = json.loads(response)
+                scores["موافقة للموضوع"].append(result["موافقة للموضوع"])
+                scores["كلمات عربية"].append(result["كلمات عربية"])
+                scores["الترابط"].append(result["الترابط"])
+                scores["الواقعية"].append(result["الواقعية"])
+
+            except (json.JSONDecodeError, KeyError) as e:
+                print(f"Error in story {i + 1}: {e}")
+                continue
+
+        averages = {}
+        for criterion, values in scores.items():
+            if values:
+                averages[criterion] = np.mean(values)
+            else:
+                averages[criterion] = 0
+
+        return averages

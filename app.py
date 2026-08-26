@@ -4,6 +4,7 @@ import random
 import tempfile
 from pathlib import Path
 from functools import wraps
+from dotenv import load_dotenv
 
 from flask import Flask, request, jsonify, session, redirect, url_for, render_template, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -14,6 +15,7 @@ from src.pronunciation import PronunciationEvaluator
 
 # -------------------------------------------------------------[ Paths ]--------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
 
 SRC_DIR = BASE_DIR / "src"
 DATASETS_DIR = BASE_DIR / "datasets"
@@ -31,7 +33,8 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "change-this-secret-key")
 
 # -------------------------------------------------------------[ Configuration ]-------------------------------------------------------------
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_KEY")
+print(GROQ_API_KEY)
 STORY_MODEL = os.getenv("STORY_MODEL", "openai/gpt-oss-120b")
 SPELL_MODEL = os.getenv("SPELL_MODEL", "openai/gpt-oss-120b")
 PRONUNCIATION_THRESHOLD = float(os.getenv("PRONUNCIATION_THRESHOLD", "75"))

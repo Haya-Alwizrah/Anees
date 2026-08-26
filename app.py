@@ -2,6 +2,7 @@ import os
 import json
 import random
 import tempfile
+import subprocess
 from pathlib import Path
 from functools import wraps
 from dotenv import load_dotenv
@@ -547,41 +548,100 @@ def pronunciation_evaluate():
             "message": "ملف التسجيل فارغ."
         }), 400
 
-    temp_path = None
+    input_path = None
+    wav_path = None
 
     try:
-        suffix = Path(audio.filename or ".wav").suffix
+        # 1. Save browser recording
+        original_suffix = Path(audio.filename or ".webm").suffix.lower()
+        if not original_suffix:
+            original_suffix = ".webm"
 
-        if not suffix:
-            suffix = ".webm"
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=original_suffix) as temp:
             audio.save(temp.name)
-            temp_path = temp.name
+            input_path = temp.name
 
-        evaluator = get_pronunciation_evaluator()
-        result = evaluator.evaluate(
-            audio_path=temp_path,
-            target_letter=target_letter,
+        # Check that file actually contains data
+        if not os.path.exists(input_path):
+            raise RuntimeError("تعذر حفظ التسجيل.")
+
+        file_size = os.path.getsize(input_path)
+        print(f"[Pronunciation] Uploaded file: {input_path} ({file_size} bytes)")
+        if file_size == 0:
+            raise ValueError("التسجيل فارغ. حاول التسجيل مرة أخرى.")
+
+        # 2. Convert WebM/Opus -> WAV
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav:
+            wav_path = temp_wav.name
+
+        ffmpeg_command = [
+            "ffmpeg",
+            "-y",
+            "-i", 
+            input_path,
+            "-ac", "1",
+            "-ar", "16000",
+            "-c:a", "pcm_s16le",
+            wav_path
+        ]
+
+        print("[Pronunciation] Converting audio to WAV...")
+
+        process = subprocess.run(
+            ffmpeg_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
         )
 
-        # Update Progress
-        update_progress("pronunciation")
+        if process.returncode != 0:
+            print("[Pronunciation] FFmpeg error:")
+            print(process.stderr)
+            raise RuntimeError("تعذر تحويل التسجيل الصوتي.")
 
+        # 3. Make sure WAV exists
+        if not os.path.exists(wav_path):
+            raise RuntimeError("لم يتم إنشاء ملف الصوت بعد التحويل.")
+
+        wav_size = os.path.getsize(wav_path)
+
+        print(f"[Pronunciation] WAV created: {wav_path} ({wav_size} bytes)")
+
+        if wav_size == 0:
+            raise ValueError("ملف الصوت الناتج فارغ.")
+
+        # 4. Evaluate pronunciation
+        evaluator = get_pronunciation_evaluator()
+        result = evaluator.evaluate(audio_path=wav_path, target_letter=target_letter)
+
+        # 5. Update progress
+        update_progress("pronunciation")
         return jsonify({
             "success": True,
             "result": result,
         })
 
     except Exception as e:
+        print("[Pronunciation] Evaluation error:", str(e))
         return jsonify({
             "success": False,
             "message": str(e),
         }), 500
 
     finally:
-        if (temp_path and os.path.exists(temp_path)):
-            os.remove(temp_path)
+        # Delete original browser recording
+        if input_path and os.path.exists(input_path):
+            try:
+                os.remove(input_path)
+            except OSError:
+                pass
+
+        # Delete converted WAV
+        if wav_path and os.path.exists(wav_path):
+            try:
+                os.remove(wav_path)
+            except OSError:
+                pass
 
 # =============================================================================
 # 5. HANDWRITING

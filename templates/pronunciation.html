@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block title %}تدريب النطق - أنيس{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pronunciation.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<div class="app-shell pronunciation-page">
+
+    <!-- =====================================================
+         TOP BAR
+    ====================================================== -->
+    <div class="pronunciation-top">
+
+        <a href="{{ url_for('home') }}" class="back-btn">
+            العودة
+        </a>
+
+        <div class="page-progress">
+            <span>تدريب النطق</span>
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         INTRO
+    ====================================================== -->
+    <section class="pronunciation-intro">
+
+        <div class="intro-icon">
+            🎙️
+        </div>
+
+        <div>
+            <h1>تدريب النطق</h1>
+
+            <p>
+                اختر حرفًا وتعلّم طريقة نطقه ثم جرّب نطقه بنفسك!
+            </p>
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         LETTER SELECTION
+    ====================================================== -->
+    <section id="letterSelection" class="pronunciation-card">
+
+        <div class="section-heading">
+
+            <div class="section-icon">
+                أ
+            </div>
+
+            <div>
+                <h2>اختر الحرف</h2>
+                <p>
+                    اختر الحرف الذي تريد التدرب عليه
+                </p>
+            </div>
+
+        </div>
+
+
+        <!-- Loading letters -->
+        <div id="lettersLoading" class="letters-loading">
+
+            <div class="loading-circle"></div>
+
+            <p>نجهز الحروف...</p>
+
+        </div>
+
+
+        <!-- Letters -->
+        <div id="lettersContainer" class="letters-grid">
+            <!-- JavaScript -->
+        </div>
+
+
+        <!-- Error -->
+        <div id="lettersError" class="inline-error hidden">
+
+            <div class="error-icon">
+                !
+            </div>
+
+            <p id="lettersErrorText">
+                تعذر تحميل الحروف.
+            </p>
+
+            <button
+                id="lettersRetryButton"
+                class="btn btn-primary"
+                type="button"
+            >
+                حاول مرة أخرى
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         PRONUNCIATION PRACTICE
+    ====================================================== -->
+    <section id="practiceSection" class="practice-card hidden">
+
+        <!-- Selected letter -->
+        <div class="selected-letter-area">
+
+            <span class="selected-letter-label">
+                الحرف الذي سنتدرب عليه
+            </span>
+
+            <div id="selectedLetter" class="selected-letter">
+                أ
+            </div>
+
+        </div>
+
+
+        <!-- Reference pronunciation -->
+        <div class="reference-section">
+
+            <div class="reference-text">
+
+                <h2>استمع أولًا</h2>
+
+                <p>
+                    استمع إلى النطق الصحيح ثم حاول تقليده.
+                </p>
+
+            </div>
+
+            <button
+                id="playReferenceButton"
+                class="audio-button"
+                type="button"
+            >
+
+                <span class="audio-icon">
+                    ▶
+                </span>
+
+                <span id="audioButtonText">
+                    استمع للنطق
+                </span>
+
+            </button>
+
+            <audio id="referenceAudio" preload="auto"></audio>
+
+        </div>
+
+
+        <!-- Recording -->
+        <div class="recording-section">
+
+            <div class="recording-heading">
+
+                <div class="microphone-icon">
+                    🎤
+                </div>
+
+                <div>
+                    <h2>الآن دورك!</h2>
+
+                    <p id="recordingStatus">
+                        اضغط على الزر وابدأ بنطق الحرف.
+                    </p>
+                </div>
+
+            </div>
+
+
+            <!-- Recording timer -->
+            <div id="recordingTimer" class="recording-timer hidden">
+                00:00
+            </div>
+
+
+            <!-- Recording button -->
+            <button
+                id="recordButton"
+                class="record-button"
+                type="button"
+            >
+
+                <span class="record-button-icon">
+                    🎙️
+                </span>
+
+                <span id="recordButtonText">
+                    ابدأ التسجيل
+                </span>
+
+            </button>
+
+
+            <!-- Recorded audio -->
+            <div id="recordedAudioBox" class="recorded-audio hidden">
+
+                <div class="recorded-audio-header">
+
+                    <span class="recorded-check">
+                        ✓
+                    </span>
+
+                    <div>
+                        <strong>تم التسجيل!</strong>
+                        <span>استمع إلى تسجيلك قبل التقييم.</span>
+                    </div>
+
+                </div>
+
+                <audio
+                    id="recordedAudio"
+                    controls
+                ></audio>
+
+            </div>
+
+
+            <!-- Evaluate -->
+            <button
+                id="evaluateButton"
+                class="btn btn-primary btn-full evaluate-button hidden"
+                type="button"
+            >
+                قيّم نطقي
+            </button>
+
+
+            <!-- Recording error -->
+            <div id="recordingError" class="recording-error hidden">
+                <span>!</span>
+                <p id="recordingErrorText"></p>
+            </div>
+
+        </div>
+
+
+        <!-- =================================================
+             RESULT
+        ================================================== -->
+        <div id="evaluationResult" class="evaluation-result hidden">
+
+            <div id="resultIcon" class="evaluation-icon">
+                ✓
+            </div>
+
+            <span id="resultLabel" class="result-label">
+                نتيجة النطق
+            </span>
+
+            <h2 id="resultTitle">
+                أحسنت!
+            </h2>
+
+            <p id="resultMessage" class="result-message">
+                نطقك ممتاز!
+            </p>
+
+
+            <!-- Score -->
+            <div class="pronunciation-score">
+
+                <div class="score-circle">
+
+                    <span id="scoreValue">
+                        0
+                    </span>
+
+                    <small>
+                        %
+                    </small>
+
+                </div>
+
+                <div class="score-details">
+
+                    <strong>
+                        نسبة التأكد
+                    </strong>
+
+                    <span>
+                        مدى تطابق نطقك مع النطق الصحيح
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <!-- Try again -->
+            <div class="result-actions">
+
+                <button
+                    id="tryAgainButton"
+                    class="btn btn-primary btn-full"
+                    type="button"
+                >
+                    جرّب مرة أخرى
+                </button>
+
+                <button
+                    id="chooseAnotherButton"
+                    class="btn btn-secondary btn-full"
+                    type="button"
+                >
+                    اختر حرفًا آخر
+                </button>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         GLOBAL LOADING
+    ====================================================== -->
+    <div id="evaluationLoading" class="evaluation-loading hidden">
+
+        <div class="loading-circle"></div>
+
+        <h2>نحلل نطقك...</h2>
+
+        <p>
+            لحظة واحدة، نتحقق من نطق الحرف.
+        </p>
+
+    </div>
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/pronunciation.js') }}"></script>
+{% endblock %}

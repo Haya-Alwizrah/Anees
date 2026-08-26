@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}تسجيل الدخول | أنيس{% endblock %}
+{% block content %}
+
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="brand">
+            <div class="brand-logo">أ</div>
+            <h1>أنيس</h1>
+            <p>تعلم العربية .. ممتع وسهل</p>
+        </div>
+
+        <div class="auth-content">
+            <h2>أهلاً بعودتك!</h2>
+            <p class="auth-subtitle">سجّل دخولك لنكمل رحلة التعلم معًا</p>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">اسم المستخدم</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">👤</span>
+                        <input type="text" id="username" name="username" placeholder="اسم المستخدم" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">كلمة المرور</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">🔒</span>
+                        <input type="password" id="password" name="password" placeholder="كلمة المرور" required>
+                    </div>
+                </div>
+
+                <div id="loginMessage" class="form-message"></div>
+
+                <button type="submit" class="btn btn-primary btn-full">ابدأ الآن</button>
+            </form>
+
+            <div class="auth-switch">ليس لديك حساب؟<a href="{{ url_for('register') }}">إنشاء حساب</a></div>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}

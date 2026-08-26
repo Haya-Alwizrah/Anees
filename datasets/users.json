@@ -1,0 +1,18 @@
+{
+  "x.hayush": {
+    "username": "x.hayush",
+    "name": "Hayush",
+    "password": "scrypt:32768:8:1$Zr4q0nYuTjHESxEJ$6507b3ea4157f89f3560e0f23b7672e57cd2efafe6662c6b4273b20aa69ba2680cc003f7de32df812f5fceb5d574b2bb89191f31c09541cf5a509091e64d7436",
+    "profile": {
+      "age": null,
+      "level": null
+    },
+    "progress": {
+      "stories": 0,
+      "spelling": 0,
+      "word_game": 5,
+      "pronunciation": 0,
+      "handwriting": 0
+    }
+  }
+}

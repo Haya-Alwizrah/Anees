@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}الرئيسية | أنيس{% endblock %}
+{% block content %}
+
+<div class="app-shell">
+    <!-- Top Bar -->
+    <header class="top-bar">
+        <div class="user-info">
+            <div class="avatar">{{ user.name[0] if user and user.name else "أ" }}</div>
+            <div>
+                <span class="greeting">أهلاً {{ user.name if user else "بك" }}!</span>
+                <span class="small-text">جاهزة لتتعلم شيء جديد اليوم؟</span>
+            </div>
+        </div>
+
+        <a href="{{ url_for('logout') }}" class="logout-btn">خروج</a>
+    </header>
+
+    <!-- Progress -->
+    <section class="progress-card">
+
+        <div class="progress-header">
+            <div>
+                <span class="streak">🔥 {{ user.progress.stories + user.progress.spelling + user.progress.word_game + user.progress.pronunciation + user.progress.handwriting }}</span>
+                <span> نشاط مكتمل</span>
+            </div>
+            <span class="progress-label">رحلة التعلم</span>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: 60%;"></div>
+        </div>
+        <p>استمر بالتعلم لتكمل مستواك 🎯</p>
+
+    </section>
+
+    <!-- Activities -->
+    <section class="section">
+        <div class="section-title">
+            <h2>الأنشطة التعليمية</h2>
+            <span>اختر نشاطًا وابدأ!</span>
+        </div>
+
+        <div class="activities-grid">
+            <!-- Spelling -->
+            <button class="activity-card writing" onclick="openFeature('spelling')">
+                <div class="activity-icon">✏️</div>
+                <div class="activity-text">
+                    <h3>مصحح الكتابة</h3>
+                    <p>حسّن إملاءك</p>
+                </div>
+                <span class="arrow">←</span>
+            </button>
+
+            <!-- Reading -->
+            <button class="activity-card reading" onclick="openFeature('reading')">
+                <div class="activity-icon">📖</div>
+                <div class="activity-text">
+                    <h3>رفيق القراءة</h3>
+                    <p>اقرأ وافهم</p>
+                </div>
+                <span class="arrow">←</span>
+            </button>
+
+            <!-- Word Game -->
+            <button class="activity-card game" onclick="openFeature('game')">
+                <div class="activity-icon">🎮</div>
+                <div class="activity-text">
+                    <h3>لعبة الكلمات</h3>
+                    <p>تحدَّ وتعلّم</p>
+                </div>
+                <span class="arrow">←</span>
+            </button>
+
+            <!-- Story -->
+            <button class="activity-card story" onclick="openFeature('story')">
+                <div class="activity-icon">✨</div>
+                <div class="activity-text">
+                    <h3>اصنع قصتك</h3>
+                    <p>خيالك بلا حدود</p>
+                </div>
+                <span class="arrow">←</span>
+            </button>
+
+            <!-- Pronunciation -->
+            <button class="activity-card pronunciation" onclick="openFeature('pronunciation')">
+                <div class="activity-icon">🗣️</div>
+                <div class="activity-text">
+                    <h3>محسن النطق</h3>
+                    <p>تحدث بوضوح</p>
+                </div>
+                <span class="arrow">←</span>
+            </button>
+
+            <!-- Handwriting -->
+            <button class="activity-card handwriting" onclick="openFeature('handwriting')">
+                <div class="activity-icon">✍️</div>
+                <div class="activity-text">
+                    <h3>مقيم الخط</h3>
+                    <p>حسّن خطك</p>
+                </div>
+                <span class="arrow">←</span>
+            </button>
+
+            <!-- Coming Soon -->
+            <button class="activity-card voice locked" onclick="showComingSoon()">
+                <div class="activity-icon">🎙️</div>
+                <div class="activity-text">
+                    <h3>صديقي الصوتي</h3>
+                    <p>محادثات صوتية تفاعلية</p>
+                </div>
+                <span class="badge">قريبًا</span>
+            </button>
+
+        </div>
+    </section>
+
+    <!-- Daily Tip -->
+    <section class="tip-card">
+        <div class="tip-icon">💡</div>
+        <div>
+            <h3>نصيحة اليوم</h3>
+            <p>القراءة اليومية لمدة 15 دقيقة تحسّن مفرداتك بشكل رائع!</p>
+        </div>
+    </section>
+
+    <!-- Story Modal -->
+    <div id="storyModal" class="modal hidden">
+        <div class="modal-card">
+            <button class="modal-close" onclick="closeModal('storyModal')">×</button>
+            <div class="modal-header">
+                <div class="modal-icon">✨</div>
+                <h2>اصنع قصتك</h2>
+                <p>اختر موضوعًا وشخصية لقصتك</p>
+            </div>
+
+            <div class="form-group">
+                <label for="storyTopic">موضوع القصة</label>
+                <select id="storyTopic">
+                    <option value="الصدق">الصدق</option>
+                    <option value="الصداقة">الصداقة</option>
+                    <option value="التعاون">التعاون</option>
+                    <option value="احترام الوالدين">احترام الوالدين</option>
+                    <option value="مساعدة الآخرين">مساعدة الآخرين</option>
+                    <option value="المسؤولية">المسؤولية</option>
+                    <option value="التسامح">التسامح</option>
+                    <option value="النظافة">النظافة</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="storyCharacter">الشخصية</label>
+                <select id="storyCharacter">
+                    <option value="أرنب">🐰 أرنب</option>
+                    <option value="أسد">🦁 أسد</option>
+                    <option value="غزال">🦌 غزال</option>
+                    <option value="نمر">🐯 نمر</option>
+                </select>
+            </div>
+
+            <button class="btn btn-primary btn-full" onclick="generateStory()" id="generateStoryBtn">✨ ابدأ القصة</button>
+        </div>
+    </div>
+
+    <!-- Story Result -->
+    <div id="storyResultModal" class="modal hidden">
+        <div class="modal-card story-result">
+            <button class="modal-close" onclick="closeModal('storyResultModal')">×</button>
+            <div class="modal-header">
+                <div class="modal-icon">📖</div>
+                <h2>قصتك</h2>
+            </div>
+
+            <div id="storyContent" class="story-content"></div>
+            <div id="storyWords" class="story-words"></div>
+            <div id="storyQuestions" class="story-questions"></div>
+        </div>
+    </div>
+
+    <!-- Feature Modal -->
+    <div id="featureModal" class="modal hidden">
+        <div class="modal-card">
+            <button class="modal-close" onclick="closeModal('featureModal')">×</button>
+            <div id="featureContent"></div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a class="nav-item active"><span>🏠</span><small>الرئيسية</small></a>
+        <a class="nav-item"><span>📚</span><small>مكتبتي</small></a>
+        <a class="nav-item"><span>🏆</span><small>إنجازاتي</small></a>
+        <a class="nav-item"><span>👨‍👩‍👧</span><small>لوحة الأهل</small></a>
+    </nav>
+
+</div>
+
+{% endblock %}

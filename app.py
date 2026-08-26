@@ -24,7 +24,7 @@ QUESTIONS_FILE = DATASETS_DIR / "questions.json"
 REFERENCE_AUDIO_DIR = DATASETS_DIR / "reference_audio"
 HANDWRITING_MODEL = MODEL_DIR / "arabic_handwriting_model.h5"
 HANDWRITING_EVALUATOR = BASE_DIR / "notebooks" / "Handwriting Enhancer" / "evaluator.py"
-USERS_FILE = BASE_DIR / "users.json"
+USERS_FILE = DATASETS_DIR / "users.json"
 
 # -------------------------------------------------------------[ Flask ]-------------------------------------------------------------
 app = Flask(__name__)
@@ -221,8 +221,10 @@ def profile():
 
 # Home
 @app.route("/")
-@require_login
 def home():
+    if not login_required():
+        return redirect(url_for("login"))
+
     return render_template("index.html", user=get_current_user())
 
 # =============================================================================

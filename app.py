@@ -33,7 +33,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "change-this-secret-key")
 
 # -------------------------------------------------------------[ Configuration ]-------------------------------------------------------------
-GROQ_API_KEY = os.getenv("GROQ_KEY")
+GROQ_API_KEY = os.getenv("GROQ_KEY2")
 print(GROQ_API_KEY)
 STORY_MODEL = os.getenv("STORY_MODEL", "openai/gpt-oss-120b")
 SPELL_MODEL = os.getenv("SPELL_MODEL", "openai/gpt-oss-120b")
@@ -229,6 +229,43 @@ def home():
         return redirect(url_for("login"))
 
     return render_template("index.html", user=get_current_user())
+
+@app.route("/story")
+@require_login
+def story_page():
+    return render_template("story.html", user=get_current_user())
+
+
+@app.route("/spelling")
+@require_login
+def spelling_page():
+    return render_template("spelling.html", user=get_current_user())
+
+
+@app.route("/word-game")
+@require_login
+def word_game_page():
+    return render_template("word_game.html", user=get_current_user())
+
+@app.route("/pronunciation")
+@require_login
+def pronunciation_page():
+    return render_template("pronunciation.html", user=get_current_user())
+
+@app.route("/handwriting")
+@require_login
+def handwriting_page():
+    return render_template("handwriting.html", user=get_current_user())
+
+@app.route("/library")
+@require_login
+def library_page():
+    return render_template("library.html", user=get_current_user())
+
+@app.route("/achievements")
+@require_login
+def achievements_page():
+    return render_template("achievements.html", user=get_current_user())
 
 # =============================================================================
 # 1. STORY GENERATION
@@ -431,13 +468,14 @@ def check_word_game():
         is_correct = (selected_answer == correct_answer)
 
         # Update Progress
-        update_progress("word_game")
+        if is_correct:
+            update_progress("word_game")
 
         # Response
         return jsonify({
             "success": True,
             "correct": is_correct,
-            "correct_answer": correct_answer,
+            "correct_answer": correct_answer if is_correct else None
         })
 
     except Exception as e:
@@ -503,10 +541,19 @@ def pronunciation_evaluate():
             "message": "ملف الصوت غير موجود."
         }), 400
 
+    if audio.filename == "":
+        return jsonify({
+            "success": False,
+            "message": "ملف التسجيل فارغ."
+        }), 400
+
     temp_path = None
 
     try:
         suffix = Path(audio.filename or ".wav").suffix
+
+        if not suffix:
+            suffix = ".webm"
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp:
             audio.save(temp.name)
@@ -672,8 +719,8 @@ def status():
         "app": "Anees",
         "status": "running",
         "features": {
-            "story": StoryGenerator is not None,
-            "spell_checker": SpellChecker is not None,
+            "story": STORIES_DATASET.exists(),
+            "spell_checker": bool(GROQ_API_KEY),
             "word_game": QUESTIONS_FILE.exists(),
             "pronunciation": PronunciationEvaluator is not None,
             "handwriting": HANDWRITING_MODEL.exists(),

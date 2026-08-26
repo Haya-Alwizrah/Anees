@@ -1,198 +1,237 @@
 {% extends "base.html" %}
-{% block title %}الرئيسية | أنيس{% endblock %}
+
+{% block title %}
+أنيس | الرئيسية
+{% endblock %}
+
+
 {% block content %}
 
 <div class="app-shell">
-    <!-- Top Bar -->
+
+    <!-- TOP BAR -->
+
     <header class="top-bar">
+
         <div class="user-info">
-            <div class="avatar">{{ user.name[0] if user and user.name else "أ" }}</div>
-            <div>
-                <span class="greeting">أهلاً {{ user.name if user else "بك" }}!</span>
-                <span class="small-text">جاهزة لتتعلم شيء جديد اليوم؟</span>
+
+            <div class="avatar" id="userAvatar">
+                {{ user.name[0] if user and user.name else 'أ' }}
             </div>
+
+            <div>
+
+                <span class="greeting">
+                    أهلًا، <span id="userName">{{ user.name }}</span>
+                </span>
+
+                <span class="small-text">
+                    مستعد نتعلم اليوم؟
+                </span>
+
+            </div>
+
         </div>
 
-        <a href="{{ url_for('logout') }}" class="logout-btn">خروج</a>
+
+        <a
+            href="{{ url_for('logout') }}"
+            class="logout-btn"
+        >
+            تسجيل الخروج
+        </a>
+
     </header>
 
-    <!-- Progress -->
+
+    <!-- PROGRESS -->
+
     <section class="progress-card">
 
         <div class="progress-header">
+
             <div>
-                <span class="streak">🔥 {{ user.progress.stories + user.progress.spelling + user.progress.word_game + user.progress.pronunciation + user.progress.handwriting }}</span>
-                <span> نشاط مكتمل</span>
+
+                <div class="progress-label">
+                    تقدمك في أنيس
+                </div>
+
+                <div class="streak">
+                    <span id="completedCount">0</span>
+                    نشاط مكتمل
+                </div>
+
             </div>
-            <span class="progress-label">رحلة التعلم</span>
+
+            <div class="progress-percentage">
+                <span id="progressPercentage">0</span>%
+            </div>
+
         </div>
+
 
         <div class="progress-bar">
-            <div class="progress-fill" style="width: 60%;"></div>
+
+            <div
+                class="progress-fill"
+                id="progressFill"
+                style="width: 0%;"
+            ></div>
+
         </div>
-        <p>استمر بالتعلم لتكمل مستواك 🎯</p>
+
+
+        <p id="progressMessage">
+            ابدأ أول نشاط لك اليوم!
+        </p>
 
     </section>
 
-    <!-- Activities -->
+
+    <!-- ACTIVITIES -->
+
     <section class="section">
+
         <div class="section-title">
-            <h2>الأنشطة التعليمية</h2>
-            <span>اختر نشاطًا وابدأ!</span>
+
+            <h2>
+                ماذا تريد أن تتعلم؟
+            </h2>
+
+            <span>
+                اختر نشاطًا وابدأ التعلم
+            </span>
+
         </div>
+
 
         <div class="activities-grid">
-            <!-- Spelling -->
-            <button class="activity-card writing" onclick="openFeature('spelling')">
-                <div class="activity-icon">✏️</div>
-                <div class="activity-text">
-                    <h3>مصحح الكتابة</h3>
-                    <p>حسّن إملاءك</p>
-                </div>
-                <span class="arrow">←</span>
-            </button>
 
-            <!-- Reading -->
-            <button class="activity-card reading" onclick="openFeature('reading')">
+            <a
+                href="{{ url_for('story_page') }}"
+                class="activity-card story"
+            >
                 <div class="activity-icon">📖</div>
-                <div class="activity-text">
-                    <h3>رفيق القراءة</h3>
-                    <p>اقرأ وافهم</p>
-                </div>
-                <span class="arrow">←</span>
-            </button>
 
-            <!-- Word Game -->
-            <button class="activity-card game" onclick="openFeature('game')">
-                <div class="activity-icon">🎮</div>
+                <div class="activity-text">
+                    <h3>القصص</h3>
+                    <p>اقرأ قصة ممتعة وتعلم كلمات جديدة</p>
+                </div>
+
+                <span class="arrow">←</span>
+            </a>
+
+
+            <a
+                href="{{ url_for('spelling_page') }}"
+                class="activity-card writing"
+            >
+                <div class="activity-icon">✏️</div>
+
+                <div class="activity-text">
+                    <h3>الإملاء</h3>
+                    <p>اكتب وتعلم من أخطائك</p>
+                </div>
+
+                <span class="arrow">←</span>
+            </a>
+
+
+            <a
+                href="{{ url_for('word_game_page') }}"
+                class="activity-card game"
+            >
+                <div class="activity-icon">🧩</div>
+
                 <div class="activity-text">
                     <h3>لعبة الكلمات</h3>
-                    <p>تحدَّ وتعلّم</p>
+                    <p>اختبر معرفتك بالكلمات</p>
                 </div>
-                <span class="arrow">←</span>
-            </button>
 
-            <!-- Story -->
-            <button class="activity-card story" onclick="openFeature('story')">
-                <div class="activity-icon">✨</div>
-                <div class="activity-text">
-                    <h3>اصنع قصتك</h3>
-                    <p>خيالك بلا حدود</p>
-                </div>
                 <span class="arrow">←</span>
-            </button>
+            </a>
 
-            <!-- Pronunciation -->
-            <button class="activity-card pronunciation" onclick="openFeature('pronunciation')">
-                <div class="activity-icon">🗣️</div>
-                <div class="activity-text">
-                    <h3>محسن النطق</h3>
-                    <p>تحدث بوضوح</p>
-                </div>
-                <span class="arrow">←</span>
-            </button>
 
-            <!-- Handwriting -->
-            <button class="activity-card handwriting" onclick="openFeature('handwriting')">
-                <div class="activity-icon">✍️</div>
-                <div class="activity-text">
-                    <h3>مقيم الخط</h3>
-                    <p>حسّن خطك</p>
-                </div>
-                <span class="arrow">←</span>
-            </button>
-
-            <!-- Coming Soon -->
-            <button class="activity-card voice locked" onclick="showComingSoon()">
+            <a
+                href="{{ url_for('pronunciation_page') }}"
+                class="activity-card pronunciation"
+            >
                 <div class="activity-icon">🎙️</div>
+
                 <div class="activity-text">
-                    <h3>صديقي الصوتي</h3>
-                    <p>محادثات صوتية تفاعلية</p>
+                    <h3>النطق</h3>
+                    <p>تدرب على نطق الحروف العربية</p>
                 </div>
-                <span class="badge">قريبًا</span>
-            </button>
+
+                <span class="arrow">←</span>
+            </a>
+
+
+            <a
+                href="{{ url_for('handwriting_page') }}"
+                class="activity-card handwriting"
+            >
+                <div class="activity-icon">✍️</div>
+
+                <div class="activity-text">
+                    <h3>الكتابة</h3>
+                    <p>تدرب على كتابة الحروف</p>
+                </div>
+
+                <span class="arrow">←</span>
+            </a>
+
+
+            <a
+                href="{{ url_for('library_page') }}"
+                class="activity-card reading"
+            >
+                <div class="activity-icon">📚</div>
+
+                <div class="activity-text">
+                    <h3>مكتبتي</h3>
+                    <p>استعرض القصص والكلمات</p>
+                </div>
+
+                <span class="arrow">←</span>
+            </a>
 
         </div>
+
     </section>
 
-    <!-- Daily Tip -->
+
+    <!-- TIP -->
+
     <section class="tip-card">
-        <div class="tip-icon">💡</div>
+
+        <div class="tip-icon">
+            💡
+        </div>
+
         <div>
+
             <h3>نصيحة اليوم</h3>
-            <p>القراءة اليومية لمدة 15 دقيقة تحسّن مفرداتك بشكل رائع!</p>
+
+            <p id="dailyTip">
+                اقرأ بصوت عالٍ عندما تقرأ قصة،
+                فهذا يساعدك على تحسين نطقك وفهمك
+                للغة العربية.
+            </p>
+
         </div>
+
     </section>
-
-    <!-- Story Modal -->
-    <div id="storyModal" class="modal hidden">
-        <div class="modal-card">
-            <button class="modal-close" onclick="closeModal('storyModal')">×</button>
-            <div class="modal-header">
-                <div class="modal-icon">✨</div>
-                <h2>اصنع قصتك</h2>
-                <p>اختر موضوعًا وشخصية لقصتك</p>
-            </div>
-
-            <div class="form-group">
-                <label for="storyTopic">موضوع القصة</label>
-                <select id="storyTopic">
-                    <option value="الصدق">الصدق</option>
-                    <option value="الصداقة">الصداقة</option>
-                    <option value="التعاون">التعاون</option>
-                    <option value="احترام الوالدين">احترام الوالدين</option>
-                    <option value="مساعدة الآخرين">مساعدة الآخرين</option>
-                    <option value="المسؤولية">المسؤولية</option>
-                    <option value="التسامح">التسامح</option>
-                    <option value="النظافة">النظافة</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="storyCharacter">الشخصية</label>
-                <select id="storyCharacter">
-                    <option value="أرنب">🐰 أرنب</option>
-                    <option value="أسد">🦁 أسد</option>
-                    <option value="غزال">🦌 غزال</option>
-                    <option value="نمر">🐯 نمر</option>
-                </select>
-            </div>
-
-            <button class="btn btn-primary btn-full" onclick="generateStory()" id="generateStoryBtn">✨ ابدأ القصة</button>
-        </div>
-    </div>
-
-    <!-- Story Result -->
-    <div id="storyResultModal" class="modal hidden">
-        <div class="modal-card story-result">
-            <button class="modal-close" onclick="closeModal('storyResultModal')">×</button>
-            <div class="modal-header">
-                <div class="modal-icon">📖</div>
-                <h2>قصتك</h2>
-            </div>
-
-            <div id="storyContent" class="story-content"></div>
-            <div id="storyWords" class="story-words"></div>
-            <div id="storyQuestions" class="story-questions"></div>
-        </div>
-    </div>
-
-    <!-- Feature Modal -->
-    <div id="featureModal" class="modal hidden">
-        <div class="modal-card">
-            <button class="modal-close" onclick="closeModal('featureModal')">×</button>
-            <div id="featureContent"></div>
-        </div>
-    </div>
-
-    <!-- Bottom Navigation -->
-    <nav class="bottom-nav">
-        <a class="nav-item active"><span>🏠</span><small>الرئيسية</small></a>
-        <a class="nav-item"><span>📚</span><small>مكتبتي</small></a>
-        <a class="nav-item"><span>🏆</span><small>إنجازاتي</small></a>
-        <a class="nav-item"><span>👨‍👩‍👧</span><small>لوحة الأهل</small></a>
-    </nav>
 
 </div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+
+<script
+    src="{{ url_for('static', filename='js/home.js') }}"
+></script>
 
 {% endblock %}

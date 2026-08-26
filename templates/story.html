@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block title %}
+أنيس | قصتي
+{% endblock %}
+
+
+{% block content %}
+
+<div class="app-shell story-page">
+
+    <!-- =====================================================
+         TOP BAR
+    ====================================================== -->
+    <header class="top-bar">
+
+        <div class="user-info">
+
+            <div class="avatar">
+                {{ user.name[0] if user and user.name else 'أ' }}
+            </div>
+
+            <div>
+                <span class="greeting">
+                    قصتي
+                </span>
+
+                <span class="small-text">
+                    اقرأ، تعلّم، واستمتع
+                </span>
+            </div>
+
+        </div>
+
+        <a href="{{ url_for('home') }}" class="back-btn">
+            الرئيسية
+        </a>
+
+    </header>
+
+
+    <!-- =====================================================
+         PAGE INTRO
+    ====================================================== -->
+    <section class="story-intro">
+
+        <div class="story-intro-icon">
+            📖
+        </div>
+
+        <div>
+            <h1>لنكتب قصة!</h1>
+
+            <p>
+                اختر موضوعًا وشخصية، ودع أنيس يصنع لك قصة ممتعة.
+            </p>
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         STORY GENERATOR
+    ====================================================== -->
+    <section class="generator-card">
+
+        <div class="generator-header">
+
+            <div>
+                <h2>اصنع قصتك</h2>
+
+                <p>
+                    اختر ما تحب ثم اضغط ابدأ
+                </p>
+            </div>
+
+            <div class="generator-icon">
+                ✨
+            </div>
+
+        </div>
+
+
+        <div class="generator-options">
+
+            <!-- Topic -->
+            <div class="story-option">
+
+                <label for="topic">
+                    موضوع القصة
+                </label>
+
+                <select id="topic">
+
+                    <option value="الصدق">
+                        الصدق
+                    </option>
+
+                    <option value="الصداقة">
+                        الصداقة
+                    </option>
+
+                    <option value="التعاون">
+                        التعاون
+                    </option>
+
+                    <option value="احترام الوالدين">
+                        احترام الوالدين
+                    </option>
+
+                    <option value="مساعدة الآخرين">
+                        مساعدة الآخرين
+                    </option>
+
+                    <option value="المسؤولية">
+                        المسؤولية
+                    </option>
+
+                    <option value="التسامح">
+                        التسامح
+                    </option>
+
+                    <option value="النظافة">
+                        النظافة
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- Character -->
+            <div class="story-option">
+
+                <label for="character">
+                    الشخصية
+                </label>
+
+                <select id="character">
+
+                    <option value="أرنب">
+                        🐰 أرنب
+                    </option>
+
+                    <option value="أسد">
+                        🦁 أسد
+                    </option>
+
+                    <option value="غزال">
+                        🦌 غزال
+                    </option>
+
+                    <option value="نمر">
+                        🐯 نمر
+                    </option>
+
+                </select>
+
+            </div>
+
+        </div>
+
+
+        <button
+            id="generateStoryBtn"
+            class="btn btn-primary btn-full generate-btn"
+            type="button"
+        >
+            <span id="generateBtnText">
+                ابدأ القصة
+            </span>
+
+            <span
+                id="generateLoader"
+                class="button-loader hidden"
+            ></span>
+        </button>
+
+
+        <div
+            id="storyError"
+            class="story-error hidden"
+        ></div>
+
+    </section>
+
+
+    <!-- =====================================================
+         LOADING
+    ====================================================== -->
+    <section
+        id="storyLoading"
+        class="story-loading hidden"
+    >
+
+        <div class="loading-book">
+            📖
+        </div>
+
+        <h2>
+            أنيس يكتب قصتك...
+        </h2>
+
+        <p>
+            لحظات ونبدأ المغامرة!
+        </p>
+
+    </section>
+
+
+    <!-- =====================================================
+         STORY RESULT
+    ====================================================== -->
+    <main
+        id="storyResult"
+        class="story-result hidden"
+    >
+
+        <!-- Story Header -->
+        <div class="story-result-header">
+
+            <div>
+
+                <span class="story-label">
+                    قصتك
+                </span>
+
+                <h2 id="storyTitle">
+                    قصة جديدة
+                </h2>
+
+            </div>
+
+            <div class="story-result-icon">
+                📚
+            </div>
+
+        </div>
+
+
+        <!-- Story Text -->
+        <section class="story-reading-card">
+
+            <div
+                id="storyContent"
+                class="story-content"
+            ></div>
+
+
+            <!-- Difficult word popup -->
+            <div
+                id="wordDefinition"
+                class="word-definition hidden"
+            >
+
+                <button
+                    id="closeDefinition"
+                    class="definition-close"
+                    type="button"
+                    aria-label="إغلاق"
+                >
+                    ×
+                </button>
+
+                <div
+                    class="definition-word"
+                    id="definitionWord"
+                ></div>
+
+                <div
+                    class="definition-text"
+                    id="definitionText"
+                ></div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             DIFFICULT WORDS
+        ================================================== -->
+        <section
+            id="difficultWordsSection"
+            class="story-section hidden"
+        >
+
+            <div class="section-title">
+
+                <div>
+                    <h2>كلمات جديدة</h2>
+
+                    <span>
+                        اضغط على الكلمة لمعرفة معناها
+                    </span>
+                </div>
+
+                <div class="section-title-icon">
+                    💡
+                </div>
+
+            </div>
+
+
+            <div
+                id="difficultWords"
+                class="difficult-words"
+            ></div>
+
+        </section>
+
+
+        <!-- =================================================
+             QUESTIONS BUTTON
+        ================================================== -->
+        <button
+            id="startQuestionsBtn"
+            class="btn btn-primary btn-full questions-start-btn hidden"
+            type="button"
+        >
+            هل فهمت القصة؟
+        </button>
+
+    </main>
+
+
+    <!-- =====================================================
+         QUESTIONS SCREEN
+         Hidden until "هل فهمت القصة؟" is clicked.
+    ====================================================== -->
+    <main
+        id="questionsScreen"
+        class="story-result hidden"
+    >
+
+        <div class="story-result-header">
+
+            <div>
+
+                <span class="story-label">
+                    أسئلة القصة
+                </span>
+
+                <h2>
+                    هل فهمت القصة؟
+                </h2>
+
+            </div>
+
+            <div class="story-result-icon">
+                🧠
+            </div>
+
+        </div>
+
+
+        <section
+            id="questionsSection"
+            class="story-section"
+        >
+
+            <div class="section-title">
+
+                <div>
+                    <h2>أسئلة القصة</h2>
+
+                    <span>
+                        اختر الإجابة الصحيحة
+                    </span>
+                </div>
+
+                <div class="section-title-icon">
+                    🧠
+                </div>
+
+            </div>
+
+
+            <div
+                id="questionsContainer"
+                class="questions-container"
+            ></div>
+
+        </section>
+
+
+        <!-- New Story -->
+        <button
+            id="newStoryFromQuestionsBtn"
+            class="btn btn-primary btn-full new-story-btn"
+            type="button"
+        >
+            قصة جديدة
+        </button>
+
+    </main>
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+
+<script
+    src="{{ url_for('static', filename='js/story.js') }}"
+></script>
+
+{% endblock %}

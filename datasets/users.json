@@ -14,5 +14,21 @@
       "pronunciation": 0,
       "handwriting": 0
     }
+  },
+  "x1.hayush": {
+    "username": "x1.hayush",
+    "name": "haya",
+    "password": "scrypt:32768:8:1$ADqF6MGlxLnS3Vnf$9539d1ad3168b8c3104cbf2d93d229a7cb0c404b33e2771c25fd4e547260de9a17564a44f9d7c7d52b8b20acc141532fd33135f821ab5a9fc1caaad4c7c571d3",
+    "profile": {
+      "age": null,
+      "level": null
+    },
+    "progress": {
+      "stories": 7,
+      "spelling": 0,
+      "word_game": 0,
+      "pronunciation": 0,
+      "handwriting": 0
+    }
   }
 }

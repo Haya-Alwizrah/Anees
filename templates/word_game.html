@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}لعبة الكلمات - أنيس{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/word_game.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<div class="app-shell word-game-page">
+
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
+    <div class="word-game-top">
+
+        <a href="{{ url_for('home') }}" class="back-btn">
+            العودة
+        </a>
+
+        <div class="game-progress">
+            <span id="questionCounter">السؤال 1 من 10</span>
+
+            <div class="game-progress-bar">
+                <div id="progressFill" class="game-progress-fill"></div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         INTRO
+    ====================================================== -->
+    <section id="gameIntro" class="game-intro">
+
+        <div class="game-intro-icon">
+            🎮
+        </div>
+
+        <div>
+            <h1>لعبة الكلمات</h1>
+            <p>
+                اقرأ السؤال واختر الكلمة المناسبة!
+            </p>
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         GAME
+    ====================================================== -->
+    <main id="gameContainer" class="game-container">
+
+        <!-- Loading -->
+        <div id="gameLoading" class="game-loading">
+
+            <div class="loading-circle"></div>
+
+            <h2>نجهز السؤال...</h2>
+
+            <p>
+                لحظة واحدة!
+            </p>
+
+        </div>
+
+
+        <!-- Question -->
+        <section id="questionCard" class="question-game-card hidden">
+            <div class="question-header">
+                <div class="question-label">
+                    اختر الإجابة الصحيحة
+                </div>
+            </div>
+
+
+            <div class="question-content">
+
+                <div class="question-icon">
+                    ?
+                </div>
+
+                <h2 id="questionText">
+                    ما هي الكلمة المناسبة؟
+                </h2>
+
+            </div>
+
+
+            <!-- Options -->
+            <div id="optionsContainer" class="game-options">
+                <!-- JS -->
+            </div>
+
+
+            <!-- Feedback -->
+            <div id="answerFeedback" class="answer-feedback hidden">
+
+                <div id="feedbackIcon" class="feedback-icon">
+                    ✓
+                </div>
+
+                <div class="feedback-content">
+
+                    <h3 id="feedbackTitle">
+                        أحسنت!
+                    </h3>
+
+                    <p id="feedbackText">
+                        إجابة صحيحة
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- Next -->
+            <button
+                id="nextButton"
+                class="btn btn-primary btn-full next-question-btn hidden"
+                type="button"
+            >
+                السؤال التالي
+            </button>
+
+        </section>
+
+
+        <!-- =================================================
+             RESULT
+        ================================================== -->
+        <section id="gameResult" class="game-result hidden">
+
+            <div class="result-icon">
+                🎉
+            </div>
+
+            <span class="result-label">
+                انتهت الجولة!
+            </span>
+
+            <h2>
+                أحسنت يا بطل!
+            </h2>
+
+            <p class="result-message">
+                لقد أنهيت جميع الأسئلة.
+            </p>
+
+
+            <div class="score-card">
+
+                <div class="score-number">
+                    <span id="scoreValue">0</span>
+                    <span class="score-total">/ 10</span>
+                </div>
+
+                <div class="score-label">
+                    إجابات صحيحة
+                </div>
+
+                <div class="score-progress">
+                    <div id="scoreProgressFill"></div>
+                </div>
+
+            </div>
+
+
+            <div id="resultMessage" class="result-feedback">
+                رائع! استمر في التعلم.
+            </div>
+
+
+            <div class="result-actions">
+
+                <button
+                    id="restartButton"
+                    class="btn btn-primary btn-full"
+                    type="button"
+                >
+                    العب مرة أخرى
+                </button>
+
+                <a
+                    href="{{ url_for('home') }}"
+                    class="btn btn-secondary btn-full"
+                >
+                    العودة للرئيسية
+                </a>
+
+            </div>
+
+        </section>
+
+
+        <!-- Error -->
+        <div id="gameError" class="game-error hidden">
+
+            <div class="error-icon">
+                !
+            </div>
+
+            <h3>
+                حدث خطأ
+            </h3>
+
+            <p id="errorMessage">
+                تعذر تحميل السؤال.
+            </p>
+
+            <button
+                id="retryButton"
+                class="btn btn-primary"
+                type="button"
+            >
+                حاول مرة أخرى
+            </button>
+
+        </div>
+
+    </main>
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/word_game.js') }}"></script>
+{% endblock %}

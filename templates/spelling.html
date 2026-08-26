@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}يومياتي - أنيس{% endblock %}
+
+{% block content %}
+
+<main class="app-shell spelling-page">
+
+    <!-- Header -->
+    <div class="top-bar">
+        <div class="user-info">
+            <div class="avatar">✎</div>
+
+            <div>
+                <span class="greeting">
+                    يومياتي
+                </span>
+
+                <span class="small-text">
+                    اكتب ما حدث معك اليوم
+                </span>
+            </div>
+        </div>
+
+        <a href="{{ url_for('home') }}" class="back-btn">
+            العودة
+        </a>
+    </div>
+
+
+    <!-- Intro -->
+    <section class="spelling-intro">
+
+        <div class="spelling-intro-icon">
+            ✏️
+        </div>
+
+        <div>
+            <h1>اكتب يومياتك</h1>
+
+            <p>
+                احكِ لي عن يومك، وسأساعدك على تحسين كتابتك
+            </p>
+        </div>
+
+    </section>
+
+
+    <!-- Writing Card -->
+    <section class="spelling-card">
+
+        <div class="spelling-card-header">
+
+            <div>
+                <h2>ماذا حدث اليوم؟</h2>
+
+                <p>
+                    اكتب بحرية، لا تقلق من الأخطاء
+                </p>
+            </div>
+
+            <div class="writing-icon">
+                📝
+            </div>
+
+        </div>
+
+
+        <textarea
+            id="diaryText"
+            class="diary-input"
+            placeholder="مثلاً: اليوم رحت إلى المدرسة وتعلمت أشياء حلوة..."
+            maxlength="3000"
+        ></textarea>
+
+
+        <div class="writing-footer">
+
+            <span id="charCount">
+                0 / 3000
+            </span>
+
+            <button
+                id="checkSpellingBtn"
+                class="btn btn-primary spelling-submit"
+                type="button"
+            >
+                <span id="checkBtnText">
+                    راجع يومياتي
+                </span>
+
+                <span
+                    id="checkLoader"
+                    class="button-loader hidden"
+                ></span>
+            </button>
+
+        </div>
+
+        <div
+            id="spellingError"
+            class="spelling-error hidden"
+        ></div>
+
+    </section>
+
+
+    <!-- Loading -->
+    <section
+        id="spellingLoading"
+        class="spelling-loading hidden"
+    >
+
+        <div class="loading-pencil">
+            ✏️
+        </div>
+
+        <h2>أنيس يقرأ يومياتك...</h2>
+
+        <p>
+            لحظة واحدة، دعني أساعدك في تحسين كتابتك
+        </p>
+
+    </section>
+
+
+    <!-- Result -->
+    <section
+        id="spellingResult"
+        class="spelling-result hidden"
+    >
+
+        <!-- Feedback -->
+        <div class="feedback-card">
+
+            <div class="feedback-icon">
+                🌟
+            </div>
+
+            <div>
+                <h2 id="feedbackTitle">
+                    أحسنت!
+                </h2>
+
+                <p id="feedbackText"></p>
+            </div>
+
+        </div>
+
+
+        <!-- Original Text -->
+        <div class="result-section">
+
+            <div class="result-section-header">
+
+                <div>
+                    <h2>يومياتك</h2>
+
+                    <span>
+                        النص الذي كتبته
+                    </span>
+                </div>
+
+                <div class="section-icon">
+                    📖
+                </div>
+
+            </div>
+
+            <div
+                id="originalText"
+                class="original-text"
+            ></div>
+
+        </div>
+
+
+        <!-- Errors -->
+        <div
+            id="errorsSection"
+            class="result-section"
+        >
+
+            <div class="result-section-header">
+
+                <div>
+                    <h2>لنحسّن كتابتك</h2>
+
+                    <span>
+                        بعض الأشياء الصغيرة التي يمكنك تحسينها
+                    </span>
+                </div>
+
+                <div class="section-icon error-section-icon">
+                    💡
+                </div>
+
+            </div>
+
+            <div
+                id="errorsContainer"
+                class="errors-container"
+            ></div>
+
+        </div>
+
+
+        <!-- No Errors -->
+        <div
+            id="perfectResult"
+            class="perfect-result hidden"
+        >
+
+            <div class="perfect-icon">
+                ⭐
+            </div>
+
+            <h2>كتابتك رائعة!</h2>
+
+            <p>
+                لم أجد أخطاء تحتاج إلى تصحيح.
+                استمر في الكتابة الجميلة!
+            </p>
+
+        </div>
+
+
+        <button
+            id="newDiaryBtn"
+            class="btn btn-primary btn-full new-diary-btn"
+            type="button"
+        >
+            اكتب يوميات جديدة
+        </button>
+
+    </section>
+
+</main>
+
+{% endblock %}
+
+
+{% block extra_js %}
+
+<script src="{{ url_for('static', filename='js/spelling.js') }}"></script>
+
+{% endblock %}

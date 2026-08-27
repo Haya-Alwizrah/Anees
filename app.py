@@ -700,16 +700,19 @@ def load_handwriting_evaluator():
         return handwriting_evaluator
 
     if not HANDWRITING_EVALUATOR.exists():
-        raise FileNotFoundError(f"Handwriting evaluator not found")
+        raise FileNotFoundError(f"Handwriting evaluator not found: {HANDWRITING_EVALUATOR}")
 
-    import sys
-    evaluator_dir = str(HANDWRITING_EVALUATOR.parent)
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("handwriting_evaluator", HANDWRITING_EVALUATOR)
 
-    if evaluator_dir not in sys.path:
-        sys.path.insert(0, evaluator_dir)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load handwriting evaluator from: {HANDWRITING_EVALUATOR}")
+    
+    evaluator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(evaluator)
 
-    import evaluator
     handwriting_evaluator = evaluator
+    print("[Handwriting] Evaluator loaded successfully.")
     return handwriting_evaluator
 
 
@@ -720,13 +723,20 @@ def handwriting_evaluate():
     target_letter = request.form.get("target_letter")
     adaptive = (request.form.get("adaptive", "false").lower() == "true")
 
+    print("\n[Handwriting] New evaluation request")
+    print("[Handwriting] Image:", image.filename if image else None)
+    print("[Handwriting] Target letter:", target_letter)
+    print("[Handwriting] Adaptive:", adaptive)
+
     if not image:
+        print("[Handwriting] ERROR: image is missing")
         return jsonify({
             "success": False,
             "message": "صورة الكتابة غير موجودة."
         }), 400
 
     if not target_letter:
+        print("[Handwriting] ERROR: target_letter is missing")
         return jsonify({
             "success": False,
             "message": "الحرف المطلوب غير موجود."

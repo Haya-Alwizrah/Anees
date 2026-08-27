@@ -4,14 +4,26 @@ document.addEventListener("DOMContentLoaded", () => {
     // Elements
     // =========================================================
 
+    const letterSelection =
+        document.getElementById("letterSelection");
+
+    const practiceSection =
+        document.getElementById("practiceSection");
+
+    const resultSection =
+        document.getElementById("resultSection");
+
+    const lettersContainer =
+        document.getElementById("lettersContainer");
+
     const targetLetterElement =
         document.getElementById("targetLetter");
 
     const targetLetterNameElement =
         document.getElementById("targetLetterName");
 
-    const nextLetterBtn =
-        document.getElementById("nextLetterBtn");
+    const backToLettersBtn =
+        document.getElementById("backToLettersBtn");
 
     const cameraBtn =
         document.getElementById("cameraBtn");
@@ -30,6 +42,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const removeImageBtn =
         document.getElementById("removeImageBtn");
+
+    const uploadActions =
+        document.getElementById("uploadActions");
 
     const cameraContainer =
         document.getElementById("cameraContainer");
@@ -52,9 +67,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const statusMessage =
         document.getElementById("statusMessage");
 
-    const resultSection =
-        document.getElementById("resultSection");
-
     const scoreValue =
         document.getElementById("scoreValue");
 
@@ -76,6 +88,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const top3List =
         document.getElementById("top3List");
 
+    const retryBtn =
+        document.getElementById("retryBtn");
+
+    const chooseAnotherBtn =
+        document.getElementById("chooseAnotherBtn");
+
 
     // =========================================================
     // State
@@ -83,12 +101,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let selectedImage = null;
     let cameraStream = null;
-
-    let targetLetter = "ب";
+    let targetLetter = null;
 
 
     // =========================================================
-    // Arabic letters
+    // Arabic Letters
     // =========================================================
 
     const arabicLetters = [
@@ -124,98 +141,138 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     // =========================================================
-    // Initialize
+    // Create Letters
     // =========================================================
 
-    setTargetLetter("ب");
+    arabicLetters.forEach((item) => {
+
+        const button =
+            document.createElement("button");
+
+        button.type = "button";
+
+        button.className =
+            "letter-btn";
+
+        button.innerHTML = `
+            <span class="letter-character">
+                ${item.letter}
+            </span>
+
+            <span class="letter-name">
+                ${item.name.replace("حرف ", "")}
+            </span>
+        `;
+
+        button.addEventListener("click", () => {
+            selectLetter(item);
+        });
+
+        lettersContainer.appendChild(button);
+    });
 
 
     // =========================================================
-    // Target Letter
+    // Select Letter
     // =========================================================
 
-    function setTargetLetter(letter) {
+    function selectLetter(item) {
 
-        const found = arabicLetters.find(
-            item => item.letter === letter
-        );
-
-        if (!found) {
-            console.error(
-                "Unsupported target letter:",
-                letter
-            );
-
-            return;
-        }
-
-        targetLetter = found.letter;
+        targetLetter = item.letter;
 
         targetLetterElement.textContent =
-            found.letter;
+            item.letter;
 
         targetLetterNameElement.textContent =
-            found.name;
+            item.name;
+
+        resetImage();
 
         resetResult();
+
+        letterSelection.classList.add("hidden");
+
+        resultSection.classList.add("hidden");
+
+        practiceSection.classList.remove("hidden");
+
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
     }
 
 
-    nextLetterBtn.addEventListener("click", () => {
-
-        const currentIndex =
-            arabicLetters.findIndex(
-                item => item.letter === targetLetter
-            );
-
-        const nextIndex =
-            (currentIndex + 1) % arabicLetters.length;
-
-        setTargetLetter(
-            arabicLetters[nextIndex].letter
-        );
-
-    });
-
-
     // =========================================================
-    // Upload Image
+    // Back To Letters
     // =========================================================
 
-    uploadBtn.addEventListener("click", () => {
-        imageInput.click();
-    });
+    backToLettersBtn.addEventListener(
+        "click",
+        () => {
 
+            stopCamera();
 
-    imageInput.addEventListener("change", (event) => {
+            resetImage();
 
-        const file = event.target.files[0];
+            practiceSection.classList.add("hidden");
 
-        if (!file) {
-            return;
+            resultSection.classList.add("hidden");
+
+            letterSelection.classList.remove("hidden");
+
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
         }
-
-        if (!file.type.startsWith("image/")) {
-
-            showStatus(
-                "الملف المحدد ليس صورة.",
-                "error"
-            );
-
-            return;
-        }
-
-        selectedImage = file;
-
-        showImagePreview(file);
-
-        stopCamera();
-
-    });
+    );
 
 
     // =========================================================
-    // Show Image Preview
+    // Upload
+    // =========================================================
+
+    uploadBtn.addEventListener(
+        "click",
+        () => {
+            imageInput.click();
+        }
+    );
+
+
+    imageInput.addEventListener(
+        "change",
+        (event) => {
+
+            const file =
+                event.target.files[0];
+
+            if (!file) {
+                return;
+            }
+
+            if (!file.type.startsWith("image/")) {
+
+                showStatus(
+                    "الملف المحدد ليس صورة.",
+                    "error"
+                );
+
+                return;
+            }
+
+            selectedImage = file;
+
+            showImagePreview(file);
+
+            stopCamera();
+        }
+    );
+
+
+    // =========================================================
+    // Image Preview
     // =========================================================
 
     function showImagePreview(file) {
@@ -225,9 +282,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         imagePreview.src = url;
 
-        imagePreviewContainer.classList.remove(
-            "hidden"
-        );
+        imagePreviewContainer
+            .classList
+            .remove("hidden");
+
+        uploadActions
+            .classList
+            .add("hidden");
 
         analyzeBtn.disabled = false;
 
@@ -241,7 +302,15 @@ document.addEventListener("DOMContentLoaded", () => {
     // Remove Image
     // =========================================================
 
-    removeImageBtn.addEventListener("click", () => {
+    removeImageBtn.addEventListener(
+        "click",
+        () => {
+            resetImage();
+        }
+    );
+
+
+    function resetImage() {
 
         selectedImage = null;
 
@@ -249,15 +318,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
         imagePreview.src = "";
 
-        imagePreviewContainer.classList.add(
-            "hidden"
-        );
+        imagePreviewContainer
+            .classList
+            .add("hidden");
+
+        uploadActions
+            .classList
+            .remove("hidden");
 
         analyzeBtn.disabled = true;
 
-        resetResult();
+        stopCamera();
 
-    });
+        hideStatus();
+    }
 
 
     // =========================================================
@@ -270,10 +344,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
             try {
 
+                if (!navigator.mediaDevices ||
+                    !navigator.mediaDevices.getUserMedia) {
+
+                    throw new Error(
+                        "الكاميرا غير مدعومة في هذا المتصفح."
+                    );
+                }
+
                 cameraStream =
                     await navigator.mediaDevices.getUserMedia({
                         video: {
-                            facingMode: "environment"
+                            facingMode: {
+                                ideal: "environment"
+                            }
                         },
                         audio: false
                     });
@@ -281,18 +365,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 cameraVideo.srcObject =
                     cameraStream;
 
-                cameraContainer.classList.remove(
-                    "hidden"
-                );
+                cameraContainer
+                    .classList
+                    .remove("hidden");
 
-                imagePreviewContainer.classList.add(
-                    "hidden"
-                );
+                uploadActions
+                    .classList
+                    .add("hidden");
+
+                imagePreviewContainer
+                    .classList
+                    .add("hidden");
 
             } catch (error) {
 
                 console.error(
-                    "Camera error:",
+                    "[Handwriting] Camera error:",
                     error
                 );
 
@@ -301,13 +389,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     "error"
                 );
             }
-
         }
     );
 
 
     // =========================================================
-    // Capture Image
+    // Capture
     // =========================================================
 
     captureBtn.addEventListener(
@@ -323,6 +410,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const height =
                 cameraVideo.videoHeight;
+
+            if (!width || !height) {
+
+                showStatus(
+                    "انتظر حتى تظهر صورة الكاميرا ثم حاول مرة أخرى.",
+                    "error"
+                );
+
+                return;
+            }
 
             cameraCanvas.width = width;
             cameraCanvas.height = height;
@@ -365,11 +462,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     );
 
                     stopCamera();
-
                 },
                 "image/png"
             );
-
         }
     );
 
@@ -381,7 +476,12 @@ document.addEventListener("DOMContentLoaded", () => {
     closeCameraBtn.addEventListener(
         "click",
         () => {
+
             stopCamera();
+
+            uploadActions
+                .classList
+                .remove("hidden");
         }
     );
 
@@ -392,21 +492,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
             cameraStream
                 .getTracks()
-                .forEach(track => track.stop());
+                .forEach(
+                    track => track.stop()
+                );
 
             cameraStream = null;
         }
 
         cameraVideo.srcObject = null;
 
-        cameraContainer.classList.add(
-            "hidden"
-        );
+        cameraContainer
+            .classList
+            .add("hidden");
     }
 
 
     // =========================================================
-    // Analyze Handwriting
+    // Analyze
     // =========================================================
 
     analyzeBtn.addEventListener(
@@ -423,11 +525,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-
             if (!targetLetter) {
 
                 showStatus(
-                    "لم يتم تحديد الحرف المطلوب.",
+                    "يرجى اختيار الحرف أولًا.",
                     "error"
                 );
 
@@ -435,17 +536,14 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
 
-            // -------------------------------------------------
-            // FormData
-            // -------------------------------------------------
-
             const formData =
                 new FormData();
 
             formData.append(
                 "image",
                 selectedImage,
-                selectedImage.name || "handwriting.png"
+                selectedImage.name ||
+                "handwriting.png"
             );
 
             formData.append(
@@ -459,21 +557,6 @@ document.addEventListener("DOMContentLoaded", () => {
             );
 
 
-            console.log(
-                "[Handwriting] Sending:",
-                {
-                    image: selectedImage.name,
-                    imageType: selectedImage.type,
-                    imageSize: selectedImage.size,
-                    targetLetter: targetLetter
-                }
-            );
-
-
-            // -------------------------------------------------
-            // UI
-            // -------------------------------------------------
-
             analyzeBtn.disabled = true;
 
             analyzeBtn.textContent =
@@ -482,10 +565,6 @@ document.addEventListener("DOMContentLoaded", () => {
             showStatus(
                 "جاري تحليل الكتابة، يرجى الانتظار...",
                 "loading"
-            );
-
-            resultSection.classList.add(
-                "hidden"
             );
 
 
@@ -501,25 +580,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     );
 
 
-                // -------------------------------------------------
-                // Read response
-                // -------------------------------------------------
-
                 const data =
                     await response.json();
 
 
-                console.log(
-                    "[Handwriting] Server response:",
-                    data
-                );
-
-
-                // -------------------------------------------------
-                // Server Error
-                // -------------------------------------------------
-
-                if (!response.ok || !data.success) {
+                if (!response.ok ||
+                    !data.success) {
 
                     throw new Error(
                         data.message ||
@@ -528,18 +594,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
 
-                // -------------------------------------------------
-                // Success
-                // -------------------------------------------------
-
                 displayResult(
                     data.result
                 );
 
-                showStatus(
-                    "تم تحليل الكتابة بنجاح.",
-                    "success"
-                );
+
+                practiceSection
+                    .classList
+                    .add("hidden");
+
+                resultSection
+                    .classList
+                    .remove("hidden");
+
+                window.scrollTo({
+                    top: 0,
+                    behavior: "smooth"
+                });
 
 
             } catch (error) {
@@ -562,9 +633,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 analyzeBtn.textContent =
                     "تحليل الكتابة";
-
             }
-
         }
     );
 
@@ -579,37 +648,39 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-
         scoreValue.textContent =
-            Number(result.score || 0).toFixed(2);
-
+            Number(
+                result.score || 0
+            ).toFixed(0);
 
         gradeValue.textContent =
             result.grade || "-";
 
-
         tierValue.textContent =
             result.tier || "-";
 
-
         resultTarget.textContent =
-            result.target_letter || targetLetter;
-
+            result.target_letter ||
+            targetLetter;
 
         resultPredicted.textContent =
-            result.predicted_letter || "-";
+            result.predicted_letter ||
+            "-";
 
 
         resultCorrect.textContent =
             result.correct
-                ? "صحيح"
+                ? "صحيح ✓"
                 : "يحتاج إلى تحسين";
 
 
-        // -------------------------------------------------
-        // Top 3
-        // -------------------------------------------------
+        resultCorrect.className =
+            result.correct
+                ? "result-correct correct"
+                : "result-correct incorrect";
 
+
+        // Top 3
         top3List.innerHTML = "";
 
 
@@ -628,60 +699,113 @@ document.addEventListener("DOMContentLoaded", () => {
                         "top3-item";
 
 
-                    const letter =
-                        document.createElement("span");
+                    row.innerHTML = `
+                        <span class="top3-rank">
+                            #${index + 1}
+                        </span>
 
-                    letter.className =
-                        "top3-letter";
+                        <span class="top3-letter">
+                            ${item.letter}
+                        </span>
 
-                    letter.textContent =
-                        item.letter;
-
-
-                    const confidence =
-                        document.createElement("span");
-
-                    confidence.className =
-                        "top3-confidence";
-
-                    confidence.textContent =
-                        `${Number(
-                            item.confidence || 0
-                        ).toFixed(2)}%`;
-
-
-                    const rank =
-                        document.createElement("span");
-
-                    rank.className =
-                        "top3-rank";
-
-                    rank.textContent =
-                        `#${index + 1}`;
-
-
-                    row.appendChild(rank);
-                    row.appendChild(letter);
-                    row.appendChild(confidence);
+                        <span class="top3-confidence">
+                            ${Number(
+                                item.confidence || 0
+                            ).toFixed(2)}%
+                        </span>
+                    `;
 
                     top3List.appendChild(row);
-
                 }
             );
-
         }
+    }
 
 
-        resultSection.classList.remove(
-            "hidden"
-        );
+    // =========================================================
+    // Retry Same Letter
+    // =========================================================
+
+    retryBtn.addEventListener(
+        "click",
+        () => {
+
+            resetImage();
+
+            resetResult();
+
+            resultSection
+                .classList
+                .add("hidden");
+
+            practiceSection
+                .classList
+                .remove("hidden");
+
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
+        }
+    );
 
 
-        resultSection.scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-        });
+    // =========================================================
+    // Choose Another Letter
+    // =========================================================
 
+    chooseAnotherBtn.addEventListener(
+        "click",
+        () => {
+
+            resetImage();
+
+            resetResult();
+
+            resultSection
+                .classList
+                .add("hidden");
+
+            practiceSection
+                .classList
+                .add("hidden");
+
+            letterSelection
+                .classList
+                .remove("hidden");
+
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
+        }
+    );
+
+
+    // =========================================================
+    // Result Reset
+    // =========================================================
+
+    function resetResult() {
+
+        scoreValue.textContent = "0";
+        gradeValue.textContent = "-";
+        tierValue.textContent = "-";
+
+        resultTarget.textContent = "-";
+        resultPredicted.textContent = "-";
+        resultCorrect.textContent = "-";
+
+        resultCorrect.className =
+            "result-correct";
+
+        top3List.innerHTML = "";
+
+        resultSection
+            .classList
+            .add("hidden");
+
+        hideStatus();
     }
 
 
@@ -697,62 +821,23 @@ document.addEventListener("DOMContentLoaded", () => {
         statusMessage.className =
             "status-message";
 
-        if (type === "error") {
-            statusMessage.classList.add(
-                "error"
-            );
+        if (type) {
+            statusMessage.classList.add(type);
         }
 
-        if (type === "success") {
-            statusMessage.classList.add(
-                "success"
-            );
-        }
-
-        if (type === "loading") {
-            statusMessage.classList.add(
-                "loading"
-            );
-        }
-
-        statusMessage.classList.remove(
-            "hidden"
-        );
+        statusMessage
+            .classList
+            .remove("hidden");
     }
 
 
     function hideStatus() {
 
-        statusMessage.classList.add(
-            "hidden"
-        );
+        statusMessage
+            .classList
+            .add("hidden");
 
         statusMessage.textContent = "";
-
-    }
-
-
-    // =========================================================
-    // Reset Result
-    // =========================================================
-
-    function resetResult() {
-
-        resultSection.classList.add(
-            "hidden"
-        );
-
-        scoreValue.textContent = "0";
-        gradeValue.textContent = "-";
-        tierValue.textContent = "-";
-        resultTarget.textContent = "-";
-        resultPredicted.textContent = "-";
-        resultCorrect.textContent = "-";
-
-        top3List.innerHTML = "";
-
-        hideStatus();
-
     }
 
 });

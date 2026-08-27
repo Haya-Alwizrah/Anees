@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}
+أنيس | ملفي
+{% endblock %}
+
+
+{% block content %}
+
+<div class="app-shell profile-page">
+
+    <!-- Profile Header -->
+
+    <section class="profile-header">
+
+        <div
+            class="profile-avatar"
+            id="profileAvatar"
+        >
+            {{ user.name[0] if user and user.name else 'أ' }}
+        </div>
+
+        <div class="profile-info">
+
+            <h1 id="profileName">
+                {{ user.name }}
+            </h1>
+
+            <p>
+                استمر في التعلم، أنت تتقدم بشكل رائع!
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- Score -->
+
+    <section class="profile-score-card">
+
+        <div class="score-main">
+
+            <span class="score-label">
+                نقاطي
+            </span>
+
+            <strong id="totalScore">
+                0
+            </strong>
+
+            <span>
+                نقطة
+            </span>
+
+        </div>
+
+
+        <div class="level-info">
+
+            <span>
+                المستوى
+            </span>
+
+            <strong id="userLevel">
+                مبتدئ
+            </strong>
+
+        </div>
+
+    </section>
+
+
+    <!-- Progress -->
+
+    <section class="profile-section">
+
+        <div class="section-title">
+
+            <h2>
+                تقدمي في أنيس
+            </h2>
+
+            <span>
+                تابع تطور مهاراتك
+            </span>
+
+        </div>
+
+
+        <div class="skills-list">
+
+            <div class="skill-row">
+
+                <div class="skill-info">
+                    <span>📖 القراءة</span>
+                    <strong id="readingProgress">0%</strong>
+                </div>
+
+                <div class="skill-bar">
+                    <div
+                        id="readingBar"
+                        style="width: 0%"
+                    ></div>
+                </div>
+
+            </div>
+
+
+            <div class="skill-row">
+
+                <div class="skill-info">
+                    <span>✏️ الإملاء</span>
+                    <strong id="spellingProgress">0%</strong>
+                </div>
+
+                <div class="skill-bar">
+                    <div
+                        id="spellingBar"
+                        style="width: 0%"
+                    ></div>
+                </div>
+
+            </div>
+
+
+            <div class="skill-row">
+
+                <div class="skill-info">
+                    <span>🎙️ النطق</span>
+                    <strong id="pronunciationProgress">0%</strong>
+                </div>
+
+                <div class="skill-bar">
+                    <div
+                        id="pronunciationBar"
+                        style="width: 0%"
+                    ></div>
+                </div>
+
+            </div>
+
+
+            <div class="skill-row">
+
+                <div class="skill-info">
+                    <span>✍️ الكتابة</span>
+                    <strong id="handwritingProgress">0%</strong>
+                </div>
+
+                <div class="skill-bar">
+                    <div
+                        id="handwritingBar"
+                        style="width: 0%"
+                    ></div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- Statistics -->
+
+    <section class="profile-section">
+
+        <div class="section-title">
+
+            <h2>
+                إحصائياتي
+            </h2>
+
+            <span>
+                إنجازاتك حتى الآن
+            </span>
+
+        </div>
+
+
+        <div class="stats-grid">
+
+            <div class="stat-card">
+                <span>📖</span>
+                <strong id="storiesCount">0</strong>
+                <small>قصة قرأتها</small>
+            </div>
+
+            <div class="stat-card">
+                <span>✏️</span>
+                <strong id="activitiesCount">0</strong>
+                <small>نشاط مكتمل</small>
+            </div>
+
+            <div class="stat-card">
+                <span>⭐</span>
+                <strong id="daysCount">0</strong>
+                <small>يوم تعلم</small>
+            </div>
+
+            <div class="stat-card">
+                <span>🏆</span>
+                <strong id="bestScore">0</strong>
+                <small>أفضل نتيجة</small>
+            </div>
+
+        </div>
+
+    </section>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+
+<script src="{{ url_for('static', filename='js/profile.js') }}"></script>
+
+{% endblock %}

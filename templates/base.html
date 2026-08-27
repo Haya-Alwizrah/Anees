@@ -27,7 +27,7 @@
             الرئيسية
         </a>
 
-        <a href="{{ url_for('word_game_page') }}" class="nav-item {% if request.endpoint == 'word_game_page' %}active{% endif %}">
+        <a href="{{ url_for('games_page') }}" class="nav-item {% if request.endpoint == 'games_page' %}active{% endif %}">
             <span>🎮</span>
             الألعاب
         </a>
@@ -37,9 +37,9 @@
             مكتبتي
         </a>
 
-        <a href="{{ url_for('achievements_page') }}" class="nav-item {% if request.endpoint == 'achievements_page' %}active{% endif %}">
-            <span>🏆</span>
-            إنجازاتي
+        <a href="{{ url_for('profile_page') }}" class="nav-item {% if request.endpoint == 'profile_page' %}active{% endif %}">
+            <span>👤</span>
+            ملفي
         </a>
     </nav>
 

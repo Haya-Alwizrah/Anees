@@ -189,29 +189,36 @@ def logout():
     return redirect(url_for("login"))
 
 # ------------------------------------------------------------- Profile -------------------------------------------------------------
-@app.route("/profile", methods=["GET", "POST"])
+@app.route("/profile")
 @require_login
-def profile():
+def profile_page():
+    return render_template("profile.html", user=get_current_user())
+
+@app.route("/api/profile", methods=["GET", "POST"])
+@require_login
+def profile_api():
     username = session["username"]
     users = load_users()
     user = users.get(username)
 
     if not user:
         session.clear()
+
         return jsonify({
             "success": False,
             "message": "المستخدم غير موجود."
         }), 404
 
-    # GET profile
+    # GET
     if request.method == "GET":
         return jsonify({
             "success": True,
-            "user": user,
+            "user": user
         })
 
-    # UPDATE profile
+    # UPDATE
     data = request.get_json(silent=True) or request.form
+
     if "name" in data: user["name"] = str(data["name"]).strip()
     if "age" in data: user["profile"]["age"] = data["age"]
     if "level" in data: user["profile"]["level"] = data["level"]
@@ -221,7 +228,7 @@ def profile():
 
     return jsonify({
         "success": True,
-        "user": user,
+        "user": user
     })
 
 # Home
@@ -259,15 +266,14 @@ def pronunciation_page():
 def handwriting_page():
     return render_template("handwriting.html", user=get_current_user())
 
+@app.route("/games")
+def games_page():
+    return render_template("games.html", user=get_current_user())
+
 @app.route("/library")
 @require_login
 def library_page():
     return render_template("library.html", user=get_current_user())
-
-@app.route("/achievements")
-@require_login
-def achievements_page():
-    return render_template("achievements.html", user=get_current_user())
 
 # =============================================================================
 # 1. STORY GENERATION

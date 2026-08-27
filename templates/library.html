@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}
+أنيس | مكتبتي
+{% endblock %}
+
+
+{% block content %}
+
+<div class="app-shell library-page">
+
+    <!-- Header -->
+
+    <header class="page-header">
+
+        <div class="page-header-icon">
+            📚
+        </div>
+
+        <div>
+            <h1>مكتبتي</h1>
+            <p>قصصك ويومياتك في مكان واحد</p>
+        </div>
+
+    </header>
+
+
+    <!-- Tabs -->
+
+    <div class="library-tabs">
+
+        <button
+            class="library-tab active"
+            data-tab="stories"
+        >
+            📖 قصصي
+        </button>
+
+        <button
+            class="library-tab"
+            data-tab="diary"
+        >
+            📔 يومياتي
+        </button>
+
+    </div>
+
+
+    <!-- STORIES -->
+
+    <section
+        id="storiesTab"
+        class="library-content"
+    >
+
+        <!-- Filters -->
+
+        <div class="library-filters">
+
+            <div class="filter-group">
+
+                <label>
+                    الموضوع
+                </label>
+
+                <select id="topicFilter">
+
+                    <option value="all">
+                        جميع المواضيع
+                    </option>
+
+                    <option value="الصداقة">
+                        الصداقة
+                    </option>
+
+                    <option value="الصدق">
+                        الصدق
+                    </option>
+
+                    <option value="التعاون">
+                        التعاون
+                    </option>
+
+                    <option value="احترام الوالدين">
+                        احترام الوالدين
+                    </option>
+
+                    <option value="مساعدة الآخرين">
+                        مساعدة الآخرين
+                    </option>
+
+                    <option value="المسؤولية">
+                        المسؤولية
+                    </option>
+
+                    <option value="التسامح">
+                        التسامح
+                    </option>
+
+                    <option value="النظافة">
+                        النظافة
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div class="filter-group">
+
+                <label>
+                    الشخصية
+                </label>
+
+                <select id="characterFilter">
+
+                    <option value="all">
+                        جميع الشخصيات
+                    </option>
+
+                    <option value="أرنب">
+                        أرنب
+                    </option>
+
+                    <option value="أسد">
+                        أسد
+                    </option>
+
+                    <option value="غزال">
+                        غزال
+                    </option>
+
+                    <option value="نمر">
+                        نمر
+                    </option>
+
+                </select>
+
+            </div>
+
+        </div>
+
+
+        <!-- Stories -->
+
+        <div
+            id="storiesContainer"
+            class="library-grid"
+        >
+
+            <!-- سيتم تعبئتها من JS -->
+
+        </div>
+
+
+        <!-- Empty -->
+
+        <div
+            id="storiesEmpty"
+            class="library-empty hidden"
+        >
+
+            <div>📖</div>
+
+            <h3>
+                لا توجد قصص بعد
+            </h3>
+
+            <p>
+                أنشئ أول قصة لك وستجدها هنا.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- DIARY -->
+
+    <section
+        id="diaryTab"
+        class="library-content hidden"
+    >
+
+        <div
+            id="diaryContainer"
+            class="diary-list"
+        >
+
+            <!-- سيتم تعبئتها من JS -->
+
+        </div>
+
+
+        <div
+            id="diaryEmpty"
+            class="library-empty"
+        >
+
+            <div>📔</div>
+
+            <h3>
+                يومياتك فارغة
+            </h3>
+
+            <p>
+                اكتب أولى ذكرياتك وستظهر هنا.
+            </p>
+
+        </div>
+
+    </section>
+
+</div>
+
+{% endblock %}

@@ -10,6 +10,7 @@ from chromadb.utils import embedding_functions
 
 from flask import Flask, request, jsonify, session, redirect, url_for, render_template, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
+from supabase import create_client, Client
 
 from src.rag import StoryGenerator
 from src.spell_checker import SpellChecker
@@ -28,7 +29,6 @@ QUESTIONS_FILE = DATASETS_DIR / "questions.json"
 REFERENCE_AUDIO_DIR = DATASETS_DIR / "reference_audio"
 HANDWRITING_MODEL = MODEL_DIR / "arabic_handwriting_model.h5"
 HANDWRITING_EVALUATOR = BASE_DIR / "notebooks" / "Handwriting_Enhancer" / "evaluator.py"
-USERS_FILE = DATASETS_DIR / "users.json"
 
 # -------------------------------------------------------------[ Flask ]-------------------------------------------------------------
 app = Flask(__name__)
@@ -40,6 +40,14 @@ print(GROQ_API_KEY)
 STORY_MODEL = os.getenv("STORY_MODEL", "openai/gpt-oss-120b")
 SPELL_MODEL = os.getenv("SPELL_MODEL", "openai/gpt-oss-120b")
 PRONUNCIATION_THRESHOLD = float(os.getenv("PRONUNCIATION_THRESHOLD", "75"))
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SECRET_KEY = os.getenv("SUPABASE_SECRET_KEY")
+
+if not SUPABASE_URL or not SUPABASE_SECRET_KEY:
+    raise RuntimeError("SUPABASE_URL or SUPABASE_SECRET_KEY is missing.")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
 
 # -------------------------------------------------------------[ Runtime AI objects ]------------------------------------------------------------
 story_generator = None
@@ -64,44 +72,100 @@ def require_login(func):
     
     return wrapper
 
-def load_users():
-    if not USERS_FILE.exists():
-        return {}
-
-    try:
-        with open(USERS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, OSError):
-        return {}
-
-def save_users(users):
-    with open(USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, ensure_ascii=False, indent=2)
-
+# Supabase Database
 def get_current_user():
     username = session.get("username")
 
     if not username:
         return None
 
-    users = load_users()
-    return users.get(username)
+    response = supabase.table("users").select("*").eq("username", username).single().execute()
+    user = response.data
+
+    if not user:
+        return None
+
+    try:
+        response = supabase.table("users").select("*").eq("username", username).execute()
+
+        if not response.data:
+            session.clear()
+            return None
+
+        user = response.data[0]
+
+        progress_response = supabase.table("progress").select("*").eq("user_id", user["id"]).execute()
+
+        if progress_response.data:
+            progress = progress_response.data[0]
+        else:
+            progress_response = (
+                supabase
+                .table("progress")
+                .insert({
+                    "user_id": user["id"],
+                    "stories": 0,
+                    "spelling": 0,
+                    "word_game": 0,
+                    "pronunciation": 0,
+                    "handwriting": 0,
+                })
+                .execute()
+            )
+            progress = progress_response.data[0]
+
+        return {
+            "id": user["id"],
+            "username": user["username"],
+            "name": user["name"],
+            "password": user["password"],
+            "profile": {
+                "age": user["age"],
+                "level": user["level"],
+            },
+            "progress": {
+                "stories": progress["stories"],
+                "spelling": progress["spelling"],
+                "word_game": progress["word_game"],
+                "pronunciation": progress["pronunciation"],
+                "handwriting": progress["handwriting"],
+            }
+        }
+
+    except Exception as e:
+        print("[Supabase] Error getting current user:", e)
+        return None
+
 
 def update_progress(feature):
     username = session.get("username")
 
-    if not username: return
+    if not username:
+        return
 
-    users = load_users()
+    # Get user
+    user_response = supabase.table("users").select("id").eq("username", username).single().execute()
+    user = user_response.data
 
-    if username not in users: return
-    if feature not in users[username]["progress"]: return
+    if not user:
+        return
 
-    users[username]["progress"][feature] += 1
-    save_users(users)
+    user_id = user["id"]
+
+    # Get current progress
+    progress_response = supabase.table("progress").select("*").eq("user_id", user_id).single().execute()
+    progress = progress_response.data
+
+    if not progress:
+        return
+
+    if feature not in ["stories", "spelling", "word_game", "pronunciation", "handwriting"]:
+        return
+
+    new_value = progress[feature] + 1
+    (supabase.table("progress").update({feature: new_value}).eq("user_id", user_id).execute())
 
 # ------------------------------------------------------------- Authentication -------------------------------------------------------------
-
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "GET":
@@ -119,35 +183,44 @@ def register():
             "message": "اسم المستخدم وكلمة المرور مطلوبة."
         }), 400
 
-    users = load_users()
+    existing = supabase.table("users").select("id").eq("username", username).execute()
 
-    if username in users:
+    if existing.data:
         return jsonify({
             "success": False,
             "message": "اسم المستخدم موجود مسبقًا."
         }), 409
 
-    users[username] = {
-        "username": username,
-        "name": name or username,
-        "password": generate_password_hash(password),
-        "profile": {"age": None, "level": None},
-        "progress": {
-            "stories": 0,
-            "spelling": 0,
-            "word_game": 0,
-            "pronunciation": 0,
-            "handwriting": 0,
-        },
-    }
+    user_response = (
+        supabase
+        .table("users")
+        .insert({
+            "username": username,
+            "name": name or username,
+            "password": generate_password_hash(password),
+            "age": None,
+            "level": None,
+        })
+        .execute()
+    )
 
-    save_users(users)
+    user = user_response.data[0]
+
+    supabase.table("progress").insert({
+        "user_id": user["id"],
+        "stories": 0,
+        "spelling": 0,
+        "word_game": 0,
+        "pronunciation": 0,
+        "handwriting": 0,
+    }).execute()
+
     session["username"] = username
 
     return jsonify({
         "success": True,
         "message": "تم إنشاء الحساب بنجاح.",
-        "user": users[username],
+        "user": get_current_user(),
     })
 
 
@@ -160,8 +233,8 @@ def login():
     username = str(data.get("username", "")).strip()
     password = str(data.get("password", "")).strip()
 
-    users = load_users()
-    user = users.get(username)
+    response = supabase.table("users").select("*").eq("username", username).single().execute()
+    user = response.data
 
     if not user:
         return jsonify({
@@ -179,7 +252,7 @@ def login():
     return jsonify({
         "success": True,
         "message": "تم تسجيل الدخول.",
-        "user": user,
+        "user": get_current_user(),
     })
 
 
@@ -198,8 +271,7 @@ def profile_page():
 @require_login
 def profile_api():
     username = session["username"]
-    users = load_users()
-    user = users.get(username)
+    user = get_current_user()
 
     if not user:
         session.clear()
@@ -219,12 +291,15 @@ def profile_api():
     # UPDATE
     data = request.get_json(silent=True) or request.form
 
-    if "name" in data: user["name"] = str(data["name"]).strip()
-    if "age" in data: user["profile"]["age"] = data["age"]
-    if "level" in data: user["profile"]["level"] = data["level"]
+    update_data = {}
+    if "name" in data: update_data["name"] = str(data["name"]).strip()
+    if "age" in data: update_data["age"] = data["age"]
+    if "level" in data: update_data["level"] = data["level"]
 
-    users[username] = user
-    save_users(users)
+    if update_data:
+        supabase.table("users").update(update_data).eq("username", username).execute()
+
+    user = get_current_user()
 
     return jsonify({
         "success": True,
@@ -327,6 +402,17 @@ def generate_story():
         except (json.JSONDecodeError, TypeError):
             questions = {"questions": []}
 
+        # Save story to database
+        user = get_current_user()
+
+        if user:
+            supabase.table("stories").insert({
+                "user_id": user["id"],
+                "topic": topic,
+                "character": character,
+                "story": story,
+            }).execute()
+
         # Update Progress
         update_progress("stories")
         
@@ -377,6 +463,21 @@ def spell_check():
     try:
         checker = get_spell_checker()
         feedback, errors = checker.correct(text)
+
+        user = get_current_user()
+
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "المستخدم غير موجود."
+            }), 404
+
+        supabase.table("diaries").insert({
+            "user_id": user["id"],
+            "original_text": text,
+            "feedback": feedback,
+            "errors": errors,
+        }).execute()
 
         # Update Progress
         update_progress("spelling")

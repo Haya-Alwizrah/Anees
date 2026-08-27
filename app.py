@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 from functools import wraps
 from dotenv import load_dotenv
+from chromadb.utils import embedding_functions
 
 from flask import Flask, request, jsonify, session, redirect, url_for, render_template, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -26,7 +27,7 @@ STORIES_DATASET = DATASETS_DIR / "Formatted-MSA-prompts-stories-for-fine-tuning.
 QUESTIONS_FILE = DATASETS_DIR / "questions.json"
 REFERENCE_AUDIO_DIR = DATASETS_DIR / "reference_audio"
 HANDWRITING_MODEL = MODEL_DIR / "arabic_handwriting_model.h5"
-HANDWRITING_EVALUATOR = BASE_DIR / "notebooks" / "Handwriting Enhancer" / "evaluator.py"
+HANDWRITING_EVALUATOR = BASE_DIR / "notebooks" / "Handwriting_Enhancer" / "evaluator.py"
 USERS_FILE = DATASETS_DIR / "users.json"
 
 # -------------------------------------------------------------[ Flask ]-------------------------------------------------------------
@@ -660,7 +661,33 @@ def load_handwriting_model():
 
     try:
         import tensorflow as tf
-        handwriting_model = (tf.keras.models.load_model(HANDWRITING_MODEL))
+        import keras
+        
+        print(f"[Handwriting] TensorFlow: {tf.__version__}")
+        print(f"[Handwriting] Keras: {keras.__version__}")
+
+        original_glorot = keras.initializers.GlorotUniform
+
+        class CompatibleGlorotUniform(original_glorot):
+            def __init__(
+                self,
+                seed=None,
+                input_axes=None,
+                output_axes=None,
+                **kwargs
+            ):
+                super().__init__(seed=seed, **kwargs)
+
+        handwriting_model = tf.keras.models.load_model(
+            HANDWRITING_MODEL,
+            compile=False,
+            custom_objects={
+                "GlorotUniform": CompatibleGlorotUniform
+            }
+        )
+
+        print("[Handwriting] Model loaded successfully.")
+
         return handwriting_model
 
     except Exception as e:
@@ -708,7 +735,10 @@ def handwriting_evaluate():
     temp_path = None
 
     try:
-        suffix = Path(image.filename or ".png").suffix
+        suffix = Path(image.filename or ".png").suffix.lower()
+
+        if suffix not in [".png", ".jpg", ".jpeg", ".webp"]:
+            suffix = ".png"
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp:
             image.save(temp.name)
@@ -812,7 +842,62 @@ def internal_error(error):
     }), 500
 
 # ------------------------------------------------------------- Run -------------------------------------------------------------
+def load_all_models():
+    global story_generator
+    global spell_checker
+    global pronunciation_evaluator
+    global handwriting_model
+    global handwriting_evaluator
+
+    print("\n" + "=" * 60)
+    print("Loading all AI models...")
+    print("=" * 60)
+
+    # Story Generator
+    print("\n[1/4] Loading Story Generator...")
+    if not GROQ_API_KEY:
+        raise RuntimeError("GROQ_API_KEY is not configured.")
+
+    story_generator = StoryGenerator(
+        data_path=str(STORIES_DATASET),
+        api_key=GROQ_API_KEY,
+        model_name=STORY_MODEL,
+    )
+
+    story_generator.prepare()
+    print("Loading reranker...")
+    story_generator._rerank("اختبار", ["هذه قصة اختبار"])
+    print("[1/4] Story Generator READY")
+
+    # Spell Checker
+    print("\n[2/4] Loading Spell Checker...")
+    spell_checker = SpellChecker(
+        api_key=GROQ_API_KEY,
+        model_name=SPELL_MODEL,
+    )
+
+    print("[2/4] Spell Checker READY")
+
+    # Pronunciation
+    print("\n[3/4] Loading Pronunciation Model...")
+    pronunciation_evaluator = PronunciationEvaluator(threshold=PRONUNCIATION_THRESHOLD)
+    print("[3/4] Pronunciation Model READY")
+
+    # Handwriting
+    print("\n[4/4] Loading Handwriting Model...")
+    handwriting_evaluator = load_handwriting_evaluator()
+    handwriting_model = load_handwriting_model()
+
+    print("[4/4] Handwriting Model READY")
+
+    print("\n" + "=" * 60)
+    print("ALL AI MODELS ARE LOADED")
+    print("=" * 60 + "\n")
+
+
 if __name__ == "__main__":
+    load_all_models()
+
     app.run(
         host="0.0.0.0",
         port=int(os.getenv("PORT", 5000)),

@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}تدريب الخط - أنيس{% endblock %}
+
+{% block content %}
+
+<main class="app-shell handwriting-page">
+
+    <!-- Header -->
+    <div class="top-bar">
+        <div>
+            <a href="{{ url_for('home') }}" class="back-btn">
+                العودة
+            </a>
+        </div>
+    </div>
+
+    <!-- Intro -->
+    <section class="handwriting-intro">
+        <div class="handwriting-intro-icon">✏️</div>
+
+        <div>
+            <h1>تدريب الخط</h1>
+            <p>اكتب الحرف وحاول تحسين خطك</p>
+        </div>
+    </section>
+
+
+    <!-- Target -->
+    <section class="handwriting-target">
+
+        <span class="target-label">اكتب هذا الحرف</span>
+
+        <div id="targetCharacter" class="target-character">
+            ب
+        </div>
+
+        <p class="target-hint">
+            حاول كتابة الحرف كما يظهر أمامك
+        </p>
+
+    </section>
+
+
+    <!-- Drawing Card -->
+    <section class="handwriting-card">
+
+        <div class="handwriting-card-header">
+            <div>
+                <h2>اكتب هنا</h2>
+                <p>استخدم إصبعك أو القلم أو الفأرة</p>
+            </div>
+
+            <div class="writing-icon">
+                ✍️
+            </div>
+        </div>
+
+
+        <!-- Canvas -->
+        <div class="canvas-wrapper">
+
+            <canvas id="handwritingCanvas"></canvas>
+
+            <div id="canvasPlaceholder" class="canvas-placeholder">
+                ابدأ بالكتابة هنا
+            </div>
+
+        </div>
+
+
+        <!-- Controls -->
+        <div class="writing-controls">
+
+            <button
+                type="button"
+                id="clearBtn"
+                class="btn clear-btn"
+            >
+                مسح
+            </button>
+
+            <button
+                type="button"
+                id="analyzeBtn"
+                class="btn btn-primary analyze-btn"
+            >
+                <span id="analyzeText">تحليل الكتابة</span>
+
+                <span
+                    id="analyzeLoader"
+                    class="button-loader hidden"
+                ></span>
+            </button>
+
+        </div>
+
+
+        <!-- Error -->
+        <div
+            id="handwritingError"
+            class="handwriting-error hidden"
+        ></div>
+
+    </section>
+
+
+    <!-- Result -->
+    <section
+        id="handwritingResult"
+        class="handwriting-result hidden"
+    >
+
+        <div class="result-header">
+            <div>
+                <span class="result-label">نتيجة المحاولة</span>
+                <h2 id="resultTitle">أحسنت!</h2>
+            </div>
+
+            <div id="resultIcon" class="result-icon">
+                ✓
+            </div>
+        </div>
+
+
+        <!-- Score -->
+        <div class="score-card">
+
+            <div class="score-circle">
+                <span id="scoreValue">0%</span>
+            </div>
+
+            <div class="score-content">
+                <h3>دقة الكتابة</h3>
+                <p id="resultMessage">
+                    نتيجة محاولتك ستظهر هنا
+                </p>
+            </div>
+
+        </div>
+
+
+        <!-- Feedback -->
+        <div class="handwriting-feedback">
+
+            <div class="feedback-icon">
+                💡
+            </div>
+
+            <div>
+                <h3>نصيحة أنيس</h3>
+                <p id="feedbackText">
+                    استمر في التدريب لتحسين خطك.
+                </p>
+            </div>
+
+        </div>
+
+
+        <!-- Try Again -->
+        <button
+            type="button"
+            id="retryBtn"
+            class="btn btn-primary btn-full retry-btn"
+        >
+            حاول مرة أخرى
+        </button>
+
+    </section>
+
+</main>
+
+{% endblock %}
+
+
+{% block extra_js %}
+
+<script src="{{ url_for('static', filename='js/handwriting.js') }}"></script>
+
+{% endblock %}
